@@ -512,8 +512,10 @@ function renderQuestion() {
     }
   }
 
-  // Players do NOT see the text answer - only the reveal media if host shows it
-  const revealHtml = '';
+  // Show text answer when host reveals
+  const showAnswer = session?.phase === 'reveal';
+  const revealHtml = showAnswer && q.answer
+    ? '<div class="q-reveal-box">✅ Antwort: ' + esc(q.answer) + '</div>' : '';
 
   // Reveal medium – host controlled
   // Read from session.currentQuestion - these fields are set when host reveals answer
