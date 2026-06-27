@@ -302,11 +302,11 @@ header nav a:hover { color: var(--text); }
     <!-- Buzzer Control -->
     <div class="panel-section">
       <h3>Buzzer</h3>
-      <div style="display:flex;gap:8px;">
-        <button class="big-btn primary" id="buzz-toggle-btn" onclick="toggleBuzzer()" style="flex:1;">
+      <div style="display:flex;gap:8px;width:100%;overflow:hidden;">
+        <button class="big-btn primary" id="buzz-toggle-btn" onclick="toggleBuzzer()" style="flex:1;min-width:0;">
           🔓 Freigeben
         </button>
-        <button class="big-btn red" onclick="resetBuzzers()" style="flex:0 0 auto;padding:13px 14px;" title="Buzzer zurücksetzen">↺</button>
+        <button class="big-btn red" onclick="resetBuzzers()" style="flex:0 0 48px;width:48px;padding:13px 0;" title="Buzzer zurücksetzen">↺</button>
       </div>
       <div class="buzz-order" id="buzz-order"></div>
     </div>
