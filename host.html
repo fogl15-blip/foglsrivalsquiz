@@ -628,8 +628,8 @@ function renderCurrentQuestion() {
       <audio id="host-audio" controls src="${esc(q.audioUrl)}" style="flex:1;height:36px;" onplay="syncMedia('play')" onpause="syncMedia('pause')" onseeked="syncMedia('seek')"></audio>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button class="btn success sm" onclick="syncMedia('play'); document.getElementById('host-audio')?.play()">▶ Abspielen für alle</button>
-      <button class="btn warn sm" onclick="syncMedia('pause'); document.getElementById('host-audio')?.pause()">⏸ Pause</button>
+      <button class="btn success sm" onclick="hostPlayAudio()">▶ Abspielen für alle</button>
+      <button class="btn warn sm" onclick="hostPauseAudio()">⏸ Pause</button>
     </div>`;
   }
   if (q.type === 'video' && q.videoUrl) {
@@ -806,6 +806,28 @@ async function syncMedia(action) {
   await update('session', {
     mediaAction: action,
     mediaTime: audio ? audio.currentTime : 0,
+    mediaSyncTs: Date.now()
+  });
+}
+
+async function hostPlayAudio() {
+  const audio = document.getElementById('host-audio');
+  if (!audio) return;
+  await update('session', {
+    mediaAction: 'play',
+    mediaTime: audio.currentTime,
+    mediaSyncTs: Date.now()
+  });
+  audio.play();
+}
+
+async function hostPauseAudio() {
+  const audio = document.getElementById('host-audio');
+  if (!audio) return;
+  audio.pause();
+  await update('session', {
+    mediaAction: 'pause',
+    mediaTime: audio.currentTime,
     mediaSyncTs: Date.now()
   });
 }

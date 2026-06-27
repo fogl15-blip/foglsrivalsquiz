@@ -586,29 +586,31 @@ function renderQuestion() {
   const revealAction = session?.revealMediaAction || null;
   if (q.revealType === 'audio' && revealAction && revealSyncTs !== (window._lastRevealSyncTs||0)) {
     window._lastRevealSyncTs = revealSyncTs;
-    const ra = document.getElementById('reveal-audio-player');
-    if (ra) {
+    setTimeout(() => {
+      const ra = document.getElementById('reveal-audio-player');
+      if (!ra) return;
       if (revealAction === 'play') { ra.currentTime = session?.revealMediaTime||0; ra.play().catch(()=>{}); }
       else if (revealAction === 'pause') ra.pause();
-    }
+    }, 100);
   }
 
-  // Sync audio playback from host
+  // Sync audio - use setTimeout to let DOM update first
   const syncTs = session?.mediaSyncTs || 0;
   const action  = session?.mediaAction || null;
   if (q.type === 'audio' && action && syncTs !== lastMediaSyncTs) {
     lastMediaSyncTs = syncTs;
-    const audio = document.getElementById('player-audio');
-    if (audio) {
+    setTimeout(() => {
+      const audio = document.getElementById('player-audio');
+      if (!audio) return;
       if (action === 'play') {
         audio.currentTime = session?.mediaTime || 0;
-        audio.play().catch(()=>{});
+        audio.play().catch(e => console.log('Audio play failed:', e));
       } else if (action === 'pause') {
         audio.pause();
       } else if (action === 'seek') {
         audio.currentTime = session?.mediaTime || 0;
       }
-    }
+    }, 100);
   }
 }
 
