@@ -304,7 +304,7 @@ body {
 
 <!-- ── GAME SCREEN ── -->
 <div class="screen hidden" id="game-screen">
-  <div id="debug-bar" style="display:none;background:#1a1a2e;border-bottom:1px solid #333;padding:6px 12px;font-size:0.7rem;color:#aaa;font-family:monospace;word-break:break-all;"></div>
+
   <div class="game-header" id="game-header">
     <div class="player-pill">
       <div class="player-dot"></div>
@@ -507,7 +507,9 @@ function renderQuestion() {
     }
   }
 
-  const revealHtml = (phase === 'reveal')
+  // Show answer as soon as host reveals - read directly from session
+  const showAnswer = session?.phase === 'reveal' || phase === 'reveal';
+  const revealHtml = showAnswer && q.answer
     ? `<div class="q-reveal-box">✅ Antwort: ${esc(q.answer || '–')}</div>` : '';
 
   // Reveal medium – host controlled
@@ -516,15 +518,7 @@ function renderQuestion() {
   const revealUrl  = q.revealUrl  || '';
   const revealMediaRevealed = session?.revealMediaRevealed || false;
 
-  // Debug bar – always visible, shows live state
-  const dbg = document.getElementById('debug-bar');
-  if (dbg) {
-    dbg.style.display = 'block';
-    dbg.textContent = 'phase:' + phase
-      + ' | revealType:' + (revealType||'–')
-      + ' | revealUrl:' + (revealUrl ? revealUrl.slice(0,30)+'…' : '–')
-      + ' | revealMediaRevealed:' + revealMediaRevealed;
-  }
+
 
 
   let revealMediaHtml = '';
