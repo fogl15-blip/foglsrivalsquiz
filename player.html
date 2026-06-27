@@ -542,7 +542,8 @@ function renderQuestion() {
             ? '<iframe src="https://www.youtube.com/embed/' + ytMatch[1] + '" width="100%" height="200" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin-top:8px;"></iframe>'
             : '<video src="' + esc(revealUrl) + '" controls style="width:100%;border-radius:8px;margin-top:8px;"></video>';
       }
-    } else {
+    } else if (session?.answerRevealed) {
+      // Only show placeholder if answer is revealed but media not yet shown
       const revealIcons = { image:'🖼️', audio:'🎵', video:'🎬' };
       const revealIcon = revealIcons[revealType] || '📎';
       revealMediaHtml = '<div style="text-align:center;font-size:0.82rem;color:var(--muted);padding:10px;background:var(--surface2);border-radius:8px;margin-top:8px;">'

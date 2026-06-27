@@ -416,6 +416,10 @@ on(PATHS.categories,    d => { cats = d || {}; renderCatFilter(); renderQPanel()
 // ─── Full Render ─────────────────────────────────────────
 function renderAll() {
   if (!session) return;
+  // Sync local answersRevealed from Firebase so page refresh doesn't lose state
+  if (session.answerRevealed && !answersRevealed) {
+    answersRevealed = true;
+  }
   renderPhaseBadge();
   renderPlayers();
   renderBuzzOrder();
@@ -646,6 +650,7 @@ function renderQPanel() {
 function loadQuestion(id) {
   currentQId = id;
   answersRevealed = false;
+  clearInterval(timerInterval); // stop any running timer
   update('session', { mediaRevealed: false, mediaAction: null, mediaTime: 0, revealMediaRevealed: false, revealMediaAction: null, answerRevealed: false });
   renderQPanel();
   renderCurrentQuestion();
@@ -777,8 +782,10 @@ function renderCurrentQuestion() {
   // Start timer
   if (q.timeLimit) startTimer(q.timeLimit);
 
-  // push question to session (for overlay)
-  update('session', { currentQuestion: { ...q, id: currentQId }, phase: 'question' });
+  // push question to session (for overlay) - only set phase if not already revealing
+  if (!answersRevealed) {
+    update('session', { currentQuestion: { ...q, id: currentQId }, phase: 'question' });
+  }
 }
 
 function revealAnswer() {
