@@ -467,7 +467,6 @@ function renderQuestion() {
   const qDisp = document.getElementById('q-display');
   const q = session?.currentQuestion;
   const phase = session?.phase || 'lobby';
-
   const mediaRevealed = session?.mediaRevealed || false;
 
   if (!q || phase === 'lobby') { qDisp.style.display = 'none'; return; }
