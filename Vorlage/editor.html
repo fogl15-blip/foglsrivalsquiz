@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizBuzz – Fragen-Editor</title>
+<link rel="stylesheet" href="shared.css">
+<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="shared.js"></script>
+<style>
+/* ── Layout ── */
+header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+header h1 { font-size: 1.5rem; letter-spacing: 0.04em; }
+header .spacer { flex: 1; }
+header nav a {
+  color: var(--muted); font-size: 0.85rem;
+  text-decoration: none; margin-left: 20px;
+  transition: color 0.2s;
+}
+header nav a:hover { color: var(--text); }
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: calc(100vh - 57px);
+}
+
+/* ── Sidebar (Categories) ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.sidebar-header h2 { font-size: 1rem; flex: 1; }
+.cat-list { flex: 1; overflow-y: auto; padding: 8px; }
+
+.cat-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  cursor: pointer; transition: background 0.15s;
+  border: 1px solid transparent;
+}
+.cat-item:hover { background: var(--surface2); }
+.cat-item.active {
+  background: var(--surface2);
+  border-color: var(--accent);
+}
+.cat-color {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.cat-name { flex: 1; font-size: 0.9rem; font-weight: 500; }
+.cat-count {
+  font-size: 0.72rem; color: var(--muted);
+  background: var(--border); border-radius: 10px;
+  padding: 2px 8px;
+}
+.cat-actions { display: none; gap: 4px; }
+.cat-item:hover .cat-actions { display: flex; }
+.icon-btn {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 0.85rem; padding: 2px 4px;
+  border-radius: 4px; transition: color 0.15s, background 0.15s;
+}
+.icon-btn:hover { color: var(--text); background: var(--border); }
+.icon-btn.red:hover { color: #ef4444; }
+
+.all-cat {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  cursor: pointer; transition: background 0.15s;
+  margin-bottom: 4px; border: 1px solid transparent;
+}
+.all-cat:hover { background: var(--surface2); }
+.all-cat.active { background: var(--surface2); border-color: var(--accent); }
+.all-cat .cat-name { font-size: 0.9rem; font-weight: 500; }
+
+/* ── Main (Questions) ── */
+.main-area { display: flex; flex-direction: column; overflow: hidden; }
+.main-toolbar {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.main-toolbar h2 { font-size: 1.1rem; flex: 1; }
+.q-count-badge {
+  background: var(--border); border-radius: 20px;
+  padding: 3px 12px; font-size: 0.78rem; color: var(--muted);
+}
+
+/* Template picker */
+.template-bar {
+  display: flex; gap: 8px; padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.tpl-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 16px;
+  cursor: pointer; transition: border-color 0.2s, background 0.2s;
+  white-space: nowrap; min-width: 90px;
+  font-family: 'Inter', sans-serif; color: var(--text);
+}
+.tpl-btn:hover { border-color: var(--accent); background: var(--surface); }
+.tpl-btn .tpl-icon { font-size: 1.4rem; }
+.tpl-btn .tpl-label { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+
+/* Question list */
+.q-list { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+.q-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  display: flex; gap: 14px; align-items: flex-start;
+  transition: border-color 0.2s;
+}
+.q-card:hover { border-color: var(--border2); }
+.q-num {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.2rem; font-weight: 700;
+  color: var(--muted); min-width: 28px; text-align: right;
+  padding-top: 1px;
+}
+.q-body { flex: 1; min-width: 0; }
+.q-type-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 2px 9px; border-radius: 20px;
+  margin-bottom: 6px;
+}
+.type-text   { background: rgba(91,110,245,0.15); color: #8896ff; }
+.type-image  { background: rgba(245,166,35,0.15); color: #f5a623; }
+.type-audio  { background: rgba(102,187,106,0.15); color: #66bb6a; }
+.type-video  { background: rgba(245,91,139,0.15); color: #f55b8b; }
+.type-combo  { background: rgba(38,198,218,0.15); color: #26c6da; }
+
+.q-question {
+  font-size: 0.92rem; font-weight: 500;
+  margin-bottom: 4px; line-height: 1.4;
+}
+.q-answer {
+  font-size: 0.78rem; color: var(--muted);
+}
+.q-answer span { color: #22c55e; }
+.q-meta {
+  display: flex; align-items: center; gap: 8px; margin-top: 6px;
+}
+.q-cat-tag {
+  font-size: 0.68rem; padding: 2px 8px; border-radius: 10px;
+  background: var(--surface2); color: var(--muted);
+}
+.q-pts {
+  font-size: 0.7rem; color: var(--muted);
+}
+.q-actions { display: flex; gap: 4px; }
+
+.q-media-thumb {
+  max-width: 120px; max-height: 70px;
+  border-radius: 6px; object-fit: cover;
+  border: 1px solid var(--border);
+  margin-top: 6px;
+}
+.q-audio-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.75rem; color: #66bb6a;
+  background: rgba(102,187,106,0.1); border-radius: 6px;
+  padding: 4px 10px; margin-top: 4px;
+}
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; padding: 60px 20px;
+  color: var(--muted); text-align: center;
+}
+.empty-state .big-icon { font-size: 3rem; }
+
+/* Drag handle */
+.drag-handle {
+  color: var(--border2); cursor: grab; padding: 2px 4px; margin-top: 2px;
+  font-size: 1rem;
+}
+.drag-handle:active { cursor: grabbing; }
+
+/* ── Question Edit Modal ── */
+.modal-body { display: flex; flex-direction: column; gap: 16px; }
+.form-row { display: flex; flex-direction: column; gap: 6px; }
+.form-row label { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.media-preview {
+  margin-top: 8px; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border); background: var(--surface2);
+  min-height: 60px; display: flex; align-items: center; justify-content: center;
+}
+.media-preview img { max-width: 100%; max-height: 200px; object-fit: contain; }
+.media-preview.empty { color: var(--muted); font-size: 0.82rem; }
+
+/* Points stepper */
+.pts-stepper {
+  display: flex; align-items: center; gap: 8px;
+}
+.pts-stepper button {
+  width: 30px; height: 30px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text); font-size: 1rem; cursor: pointer;
+  transition: background 0.15s;
+}
+.pts-stepper button:hover { background: var(--border); }
+.pts-stepper span {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.3rem; font-weight: 700; min-width: 36px; text-align: center;
+}
+
+/* Color swatches for categories */
+.color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.swatch {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.swatch:hover { transform: scale(1.15); }
+.swatch.selected { border-color: #fff; }
+
+.modal-footer {
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 8px; padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* reorder arrows */
+.q-order-btns { display: flex; flex-direction: column; gap: 2px; }
+.q-order-btn {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 0.75rem; line-height: 1;
+  padding: 1px 3px; border-radius: 3px;
+  transition: color 0.15s;
+}
+.q-order-btn:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="gradient-text">⚡ QuizBuzz</h1>
+  <span style="color:var(--muted);font-size:0.8rem;">Fragen-Editor</span>
+  <div class="spacer"></div>
+  <nav>
+    <a href="host.html">→ Host-Ansicht</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Kategorien</h2>
+      <button class="btn sm" onclick="openCatModal()">+ Neu</button>
+    </div>
+    <div class="cat-list" id="cat-list">
+      <div class="all-cat active" id="all-cat" onclick="selectCat(null)">
+        <span style="font-size:1rem;">📋</span>
+        <span class="cat-name">Alle Fragen</span>
+        <span class="cat-count" id="all-count">0</span>
+      </div>
+      <!-- categories rendered here -->
+    </div>
+  </div>
+
+  <!-- ── MAIN ── -->
+  <div class="main-area">
+    <div class="main-toolbar">
+      <h2 id="main-title">Alle Fragen</h2>
+      <span class="q-count-badge" id="q-count-badge">0 Fragen</span>
+      <div class="spacer" style="flex:1;"></div>
+    </div>
+
+    <!-- Template bar -->
+    <div class="template-bar">
+      <span style="color:var(--muted);font-size:0.78rem;align-self:center;white-space:nowrap;">+ Neue Frage:</span>
+      <button class="tpl-btn" onclick="openQuestionModal('text')">
+        <span class="tpl-icon">📝</span><span class="tpl-label">Text</span>
+      </button>
+      <button class="tpl-btn" onclick="openQuestionModal('image')">
+        <span class="tpl-icon">🖼️</span><span class="tpl-label">Bild</span>
+      </button>
+      <button class="tpl-btn" onclick="openQuestionModal('audio')">
+        <span class="tpl-icon">🎵</span><span class="tpl-label">Sound</span>
+      </button>
+      <button class="tpl-btn" onclick="openQuestionModal('video')">
+        <span class="tpl-icon">🎬</span><span class="tpl-label">Video</span>
+      </button>
+      <button class="tpl-btn" onclick="openQuestionModal('combo')">
+        <span class="tpl-icon">🎯</span><span class="tpl-label">Bild + Text</span>
+      </button>
+    </div>
+
+    <div class="q-list" id="q-list"></div>
+  </div>
+</div>
+
+<!-- ── CATEGORY MODAL ── -->
+<div class="modal-backdrop" id="cat-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="cat-modal-title">Kategorie erstellen</h2>
+      <button class="modal-close" onclick="closeCatModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Name</label>
+        <input class="input" id="cat-name-input" placeholder="z. B. Geographie, Musik, Film …" maxlength="40">
+      </div>
+      <div class="form-row">
+        <label>Farbe</label>
+        <div class="color-swatches" id="color-swatches"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost sm" onclick="closeCatModal()">Abbrechen</button>
+      <button class="btn sm" onclick="saveCat()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── QUESTION MODAL ── -->
+<div class="modal-backdrop" id="q-modal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h2 id="q-modal-title">Neue Frage</h2>
+      <button class="modal-close" onclick="closeQModal()">✕</button>
+    </div>
+    <div class="modal-body" id="q-modal-body">
+      <!-- dynamic content -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost sm" onclick="closeQModal()">Abbrechen</button>
+      <button class="btn sm" onclick="saveQuestion()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ─── Init ───────────────────────────────────────────────
+initFirebase();
+
+const CAT_COLORS = [
+  '#5b6ef5','#f55b8b','#f5a623','#4fc3f7','#66bb6a',
+  '#ef5350','#ab47bc','#26c6da','#ff7043','#8bc34a'
+];
+
+let cats = {};        // { id: { name, color } }
+let questions = {};   // { id: { type, question, answer, categoryId, points, media, ... } }
+let selectedCatId = null;
+let editingQId = null;
+let editingCatId = null;
+let currentType = 'text';
+let currentPts = 1;
+let selectedCatColor = CAT_COLORS[0];
+
+// ─── Firebase Listeners ─────────────────────────────────
+on(PATHS.categories, data => { cats = data || {}; renderAll(); });
+on(PATHS.questions,  data => { questions = data || {}; renderAll(); });
+
+// ─── Render ─────────────────────────────────────────────
+function renderAll() { renderCats(); renderQuestions(); }
+
+function renderCats() {
+  const list = document.getElementById('cat-list');
+  const total = Object.keys(questions).length;
+  document.getElementById('all-count').textContent = total;
+  document.getElementById('q-count-badge').textContent = `${getFilteredQs().length} Fragen`;
+
+  // keep "Alle" at top
+  const existing = list.querySelector('#all-cat');
+  list.innerHTML = '';
+  list.appendChild(existing);
+
+  Object.entries(cats).forEach(([id, cat]) => {
+    const count = Object.values(questions).filter(q => q.categoryId === id).length;
+    const div = document.createElement('div');
+    div.className = 'cat-item' + (selectedCatId === id ? ' active' : '');
+    div.innerHTML = `
+      <div class="cat-color" style="background:${esc(cat.color)}"></div>
+      <span class="cat-name">${esc(cat.name)}</span>
+      <span class="cat-count">${count}</span>
+      <div class="cat-actions">
+        <button class="icon-btn" onclick="openCatModal('${id}')" title="Umbenennen">✏️</button>
+        <button class="icon-btn red" onclick="deleteCat('${id}')" title="Löschen">🗑</button>
+      </div>`;
+    div.addEventListener('click', e => {
+      if (e.target.closest('.cat-actions')) return;
+      selectCat(id);
+    });
+    list.appendChild(div);
+  });
+
+  // update all-cat active state
+  existing.className = 'all-cat' + (selectedCatId === null ? ' active' : '');
+}
+
+function getFilteredQs() {
+  const all = Object.entries(questions);
+  if (selectedCatId === null) return all;
+  return all.filter(([, q]) => q.categoryId === selectedCatId);
+}
+
+function renderQuestions() {
+  const list = document.getElementById('q-list');
+  const filtered = getFilteredQs();
+  document.getElementById('q-count-badge').textContent = `${filtered.length} Fragen`;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="big-icon">${selectedCatId ? '📂' : '🎯'}</div>
+      <p>Noch keine Fragen vorhanden.<br>Wähle oben ein Template, um loszulegen.</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(([id, q], idx) => {
+    const cat = cats[q.categoryId];
+    const typeMeta = TYPE_META[q.type] || TYPE_META.text;
+    let mediaHtml = '';
+    if (q.type === 'image' || q.type === 'combo') {
+      if (q.imageUrl) mediaHtml = `<img src="${esc(q.imageUrl)}" class="q-media-thumb" alt="Vorschau">`;
+    }
+    if (q.type === 'audio') {
+      if (q.audioUrl) mediaHtml = `<div class="q-audio-badge">🎵 ${esc(q.audioUrl.split('/').pop().substring(0,40))}</div>`;
+    }
+    if (q.type === 'video') {
+      if (q.videoUrl) mediaHtml = `<div class="q-audio-badge" style="color:#f55b8b;background:rgba(245,91,139,0.1)">🎬 ${esc(q.videoUrl.substring(0,50))}</div>`;
+    }
+    return `
+    <div class="q-card" id="qc-${id}">
+      <div class="q-order-btns">
+        <button class="q-order-btn" onclick="moveQ('${id}',-1)" title="Nach oben">▲</button>
+        <button class="q-order-btn" onclick="moveQ('${id}',1)"  title="Nach unten">▼</button>
+      </div>
+      <div class="q-num">${idx+1}</div>
+      <div class="q-body">
+        <span class="q-type-badge type-${q.type}">${typeMeta.icon} ${typeMeta.label}</span>
+        <div class="q-question">${esc(q.question || '(keine Frage)')}</div>
+        ${mediaHtml}
+        <div class="q-answer">Antwort: <span>${esc(q.answer || '–')}</span></div>
+        <div class="q-meta">
+          ${cat ? '<span class="q-cat-tag" style="color:' + esc(cat.color) + '">' + esc(cat.name) + '</span>' : ''}
+          <span class="q-pts">${q.points || 1} Pkt.</span>
+        </div>
+      </div>
+      <div class="q-actions">
+        <button class="icon-btn" onclick="openQuestionModal('${q.type}','${id}')" title="Bearbeiten">✏️</button>
+        <button class="icon-btn red" onclick="deleteQ('${id}')" title="Löschen">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+const TYPE_META = {
+  text:  { icon:'📝', label:'Text' },
+  image: { icon:'🖼️', label:'Bild' },
+  audio: { icon:'🎵', label:'Sound' },
+  video: { icon:'🎬', label:'Video' },
+  combo: { icon:'🎯', label:'Bild+Text' },
+};
+
+// ─── Category CRUD ──────────────────────────────────────
+function selectCat(id) {
+  selectedCatId = id;
+  const title = id ? (cats[id]?.name || 'Kategorie') : 'Alle Fragen';
+  document.getElementById('main-title').textContent = title;
+  renderAll();
+}
+
+function openCatModal(editId) {
+  editingCatId = editId || null;
+  const modal = document.getElementById('cat-modal');
+  document.getElementById('cat-modal-title').textContent = editId ? 'Kategorie bearbeiten' : 'Kategorie erstellen';
+  document.getElementById('cat-name-input').value = editId ? (cats[editId]?.name || '') : '';
+  selectedCatColor = editId ? (cats[editId]?.color || CAT_COLORS[0]) : CAT_COLORS[0];
+  renderColorSwatches();
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('cat-name-input').focus(), 100);
+}
+function closeCatModal() { document.getElementById('cat-modal').classList.remove('open'); }
+
+function renderColorSwatches() {
+  document.getElementById('color-swatches').innerHTML = CAT_COLORS.map(c =>
+    `<div class="swatch ${c===selectedCatColor?'selected':''}" style="background:${c}"
+      onclick="selectColor('${c}')"></div>`
+  ).join('');
+}
+function selectColor(c) { selectedCatColor = c; renderColorSwatches(); }
+
+async function saveCat() {
+  const name = document.getElementById('cat-name-input').value.trim();
+  if (!name) { showToast('Name eingeben!', 'err'); return; }
+  const data = { name, color: selectedCatColor };
+  if (editingCatId) {
+    await update(`${PATHS.categories}/${editingCatId}`, data);
+  } else {
+    await push(PATHS.categories, data);
+  }
+  closeCatModal();
+  showToast('Gespeichert ✓', 'ok');
+}
+
+async function deleteCat(id) {
+  if (!confirm('Kategorie löschen? Fragen bleiben erhalten (ohne Kategorie).')) return;
+  await remove(`${PATHS.categories}/${id}`);
+  // remove category from questions
+  const affected = Object.entries(questions).filter(([,q]) => q.categoryId === id);
+  for (const [qid] of affected) {
+    await update(`${PATHS.questions}/${qid}`, { categoryId: null });
+  }
+  if (selectedCatId === id) selectCat(null);
+  showToast('Gelöscht', 'ok');
+}
+
+// ─── Question CRUD ──────────────────────────────────────
+function openQuestionModal(type, editId) {
+  editingQId = editId || null;
+  currentType = type;
+  const existing = editId ? questions[editId] : null;
+  currentPts = existing?.points || 1;
+
+  document.getElementById('q-modal-title').textContent =
+    (editId ? 'Frage bearbeiten' : 'Neue Frage') + ' – ' + TYPE_META[type].label;
+
+  document.getElementById('q-modal-body').innerHTML = buildQForm(type, existing);
+  updatePtsDisplay();
+  document.getElementById('q-modal').classList.add('open');
+  updateMediaPreview(type, existing);
+}
+function closeQModal() { document.getElementById('q-modal').classList.remove('open'); }
+
+function buildQForm(type, q) {
+  const catOptions = Object.entries(cats).map(([id, c]) =>
+    `<option value="${id}" ${q?.categoryId===id?'selected':''}>${esc(c.name)}</option>`
+  ).join('');
+
+  const baseFields = `
+    <div class="form-row">
+      <label>Frage / Aufgabenstellung</label>
+      <textarea class="input" id="qf-question" placeholder="Welche Stadt ist die Hauptstadt von …?">${esc(q?.question||'')}</textarea>
+    </div>
+    <div class="form-row">
+      <label>Antwort (Musterlösung)</label>
+      <input class="input" id="qf-answer" placeholder="Richtige Antwort …" value="${esc(q?.answer||'')}">
+    </div>`;
+
+  let mediaFields = '';
+  if (type === 'image' || type === 'combo') {
+    mediaFields = `
+      <div class="form-row">
+        <label>Bild-URL</label>
+        <input class="input" id="qf-imageUrl" placeholder="https://…/bild.jpg"
+          value="${esc(q?.imageUrl||'')}" oninput="livePreview('image')">
+        <div class="media-preview empty" id="media-preview">
+          ${q?.imageUrl ? '<img src="' + esc(q.imageUrl) + '" style="max-width:100%;max-height:180px;">' : '<span>Bild-URL eingeben für Vorschau</span>'}
+        </div>
+      </div>`;
+    if (type === 'combo') {
+      mediaFields += `
+        <div class="form-row">
+          <label>Hinweis-Text (optional, wird unter dem Bild angezeigt)</label>
+          <input class="input" id="qf-hint" placeholder="z. B. 'Wer ist diese Person?'"
+            value="${esc(q?.hint||'')}">
+        </div>`;
+    }
+  }
+  if (type === 'audio') {
+    mediaFields = `
+      <div class="form-row">
+        <label>Audio-URL (MP3, OGG, direkte URL)</label>
+        <input class="input" id="qf-audioUrl" placeholder="https://…/sound.mp3"
+          value="${esc(q?.audioUrl||'')}" oninput="livePreview('audio')">
+        <div class="media-preview empty" id="media-preview" style="padding:12px;">
+          ${q?.audioUrl ? '<audio controls src="' + esc(q.audioUrl) + '" style="width:100%"></audio>' : '<span>Audio-URL eingeben für Vorschau</span>'}
+        </div>
+      </div>`;
+  }
+  if (type === 'video') {
+    mediaFields = `
+      <div class="form-row">
+        <label>Video-URL (YouTube-Link oder direkte MP4-URL)</label>
+        <input class="input" id="qf-videoUrl" placeholder="https://youtube.com/watch?v=… oder https://…/video.mp4"
+          value="${esc(q?.videoUrl||'')}" oninput="livePreview('video')">
+        <div class="media-preview empty" id="media-preview" style="padding:12px;min-height:80px;">
+          ${q?.videoUrl ? buildVideoEmbed(q.videoUrl) : '<span>Video-URL eingeben für Vorschau</span>'}
+        </div>
+      </div>`;
+  }
+
+  return `
+    ${baseFields}
+    ${mediaFields}
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Kategorie</label>
+        <select class="input" id="qf-cat">
+          <option value="">– keine –</option>
+          ${catOptions}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Punkte</label>
+        <div class="pts-stepper">
+          <button type="button" onclick="changePts(-1)">−</button>
+          <span id="pts-val">1</span>
+          <button type="button" onclick="changePts(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Zeitlimit (Sekunden, 0 = kein Limit)</label>
+      <input class="input" type="number" id="qf-time" min="0" max="300" value="${q?.timeLimit||30}" style="width:100px;">
+    </div>
+    <div class="form-row" style="margin-top:4px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0 6px;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap;">✅ Auflösungs-Medium (optional)</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">Wird erst sichtbar wenn du im Host die Antwort aufdeckst.</p>
+      <label>Typ</label>
+      <select class="input" id="qf-reveal-type" onchange="toggleRevealFields()" style="margin-bottom:10px;">
+        <option value="">– kein Medium –</option>
+        <option value="image">🖼️ Bild</option>
+        <option value="audio">🎵 Audio</option>
+        <option value="video">🎬 Video</option>
+      </select>
+      <div id="reveal-fields"></div>
+    </div>`;
+
+  // Set reveal type select value and populate fields after DOM is ready
+  setTimeout(() => {
+    const revSel = document.getElementById('qf-reveal-type');
+    if (revSel && q && q.revealType) {
+      revSel.value = q.revealType;
+      toggleRevealFields();
+    }
+  }, 0);
+}
+
+function buildVideoEmbed(url) {
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch) {
+    return `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="160"
+      frameborder="0" allowfullscreen style="border-radius:6px;"></iframe>`;
+  }
+  return `<video src="${esc(url)}" controls style="width:100%;max-height:160px;border-radius:6px;"></video>`;
+}
+
+function livePreview(type) {
+  const preview = document.getElementById('media-preview');
+  if (!preview) return;
+  if (type === 'image') {
+    const url = document.getElementById('qf-imageUrl')?.value;
+    preview.innerHTML = url ? `<img src="${esc(url)}" style="max-width:100%;max-height:180px;">` : '<span>Bild-URL eingeben für Vorschau</span>';
+    preview.className = 'media-preview' + (url ? '' : ' empty');
+  }
+  if (type === 'audio') {
+    const url = document.getElementById('qf-audioUrl')?.value;
+    preview.innerHTML = url ? `<audio controls src="${esc(url)}" style="width:100%"></audio>` : '<span>Audio-URL eingeben für Vorschau</span>';
+    preview.className = 'media-preview' + (url ? '' : ' empty');
+  }
+  if (type === 'video') {
+    const url = document.getElementById('qf-videoUrl')?.value;
+    preview.innerHTML = url ? buildVideoEmbed(url) : '<span>Video-URL eingeben für Vorschau</span>';
+    preview.className = 'media-preview' + (url ? '' : ' empty');
+  }
+}
+
+function updateMediaPreview(type, q) { /* handled inline */ }
+
+function toggleRevealFields() {
+  const type = document.getElementById('qf-reveal-type')?.value;
+  const container = document.getElementById('reveal-fields');
+  if (!container) return;
+
+  // Read existing values from currently open question (editingQId)
+  const q = editingQId ? (questions[editingQId] || {}) : {};
+  const existingUrl = document.getElementById('qf-reveal-url')?.value || q.revealUrl || '';
+
+  if (!type) { container.innerHTML = ''; return; }
+
+  if (type === 'image') {
+    container.innerHTML = `
+      <label style="font-size:0.78rem;color:var(--muted);">Bild-URL</label>
+      <input class="input" id="qf-reveal-url" placeholder="https://…/aufloesung.jpg"
+        value="${esc(existingUrl)}" oninput="liveRevealPreview()" style="margin-bottom:8px;">
+      <div class="media-preview ${existingUrl ? '' : 'empty'}" id="reveal-preview" style="margin-top:4px;">
+        ${existingUrl ? '<img src="' + esc(existingUrl) + '" style="max-width:100%;max-height:160px;">' : '<span>Bild-URL eingeben für Vorschau</span>'}
+      </div>`;
+  }
+  if (type === 'audio') {
+    container.innerHTML = `
+      <label style="font-size:0.78rem;color:var(--muted);">Audio-URL (MP3/OGG)</label>
+      <input class="input" id="qf-reveal-url" placeholder="https://…/loesung.mp3"
+        value="${esc(existingUrl)}" oninput="liveRevealPreview()" style="margin-bottom:8px;">
+      <div class="media-preview ${existingUrl ? '' : 'empty'}" id="reveal-preview" style="padding:10px;">
+        ${existingUrl ? '<audio controls src="' + esc(existingUrl) + '" style="width:100%"></audio>' : '<span>Audio-URL eingeben für Vorschau</span>'}
+      </div>`;
+  }
+  if (type === 'video') {
+    container.innerHTML = `
+      <label style="font-size:0.78rem;color:var(--muted);">Video-URL (YouTube oder MP4)</label>
+      <input class="input" id="qf-reveal-url" placeholder="https://youtube.com/watch?v=…"
+        value="${esc(existingUrl)}" oninput="liveRevealPreview()" style="margin-bottom:8px;">
+      <div class="media-preview ${existingUrl ? '' : 'empty'}" id="reveal-preview" style="padding:10px;min-height:80px;">
+        ${existingUrl ? buildVideoEmbed(existingUrl) : '<span>Video-URL eingeben für Vorschau</span>'}
+      </div>`;
+  }
+}
+
+function liveRevealPreview() {
+  const type = document.getElementById('qf-reveal-type')?.value;
+  const url  = document.getElementById('qf-reveal-url')?.value;
+  const preview = document.getElementById('reveal-preview');
+  if (!preview || !type) return;
+  if (!url) { preview.innerHTML = '<span>URL eingeben für Vorschau</span>'; preview.className = 'media-preview empty'; return; }
+  preview.className = 'media-preview';
+  if (type === 'image') preview.innerHTML = `<img src="${esc(url)}" style="max-width:100%;max-height:160px;">`;
+  if (type === 'audio') preview.innerHTML = `<audio controls src="${esc(url)}" style="width:100%"></audio>`;
+  if (type === 'video') preview.innerHTML = buildVideoEmbed(url);
+}
+
+function changePts(d) {
+  currentPts = Math.max(1, Math.min(10, currentPts + d));
+  updatePtsDisplay();
+}
+function updatePtsDisplay() {
+  const el = document.getElementById('pts-val');
+  if (el) el.textContent = currentPts;
+}
+
+async function saveQuestion() {
+  const q = document.getElementById('qf-question')?.value.trim();
+  const a = document.getElementById('qf-answer')?.value.trim();
+  if (!q) { showToast('Frage eingeben!', 'err'); return; }
+
+  const data = {
+    type: currentType,
+    question: q,
+    answer: a || '',
+    categoryId: document.getElementById('qf-cat')?.value || null,
+    points: currentPts,
+    timeLimit: parseInt(document.getElementById('qf-time')?.value) || 0,
+    order: editingQId ? (questions[editingQId]?.order ?? Date.now()) : Date.now(),
+  };
+
+  if (currentType === 'image' || currentType === 'combo') {
+    data.imageUrl = document.getElementById('qf-imageUrl')?.value.trim() || '';
+  }
+  if (currentType === 'combo') {
+    data.hint = document.getElementById('qf-hint')?.value.trim() || '';
+  }
+  if (currentType === 'audio') {
+    data.audioUrl = document.getElementById('qf-audioUrl')?.value.trim() || '';
+  }
+  if (currentType === 'video') {
+    data.videoUrl = document.getElementById('qf-videoUrl')?.value.trim() || '';
+  }
+
+  // Reveal medium
+  const revealType = document.getElementById('qf-reveal-type')?.value || '';
+  data.revealType = revealType;
+  data.revealUrl  = revealType ? (document.getElementById('qf-reveal-url')?.value.trim() || '') : '';
+
+  if (editingQId) {
+    await update(`${PATHS.questions}/${editingQId}`, data);
+  } else {
+    await push(PATHS.questions, data);
+  }
+  closeQModal();
+  showToast('Frage gespeichert ✓', 'ok');
+}
+
+async function deleteQ(id) {
+  if (!confirm('Frage löschen?')) return;
+  await remove(`${PATHS.questions}/${id}`);
+  showToast('Gelöscht');
+}
+
+async function moveQ(id, dir) {
+  const filtered = getFilteredQs().map(([i,q]) => ({ id:i, order: q.order ?? 0 }));
+  const idx = filtered.findIndex(x => x.id === id);
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= filtered.length) return;
+  const a = filtered[idx], b = filtered[swapIdx];
+  await update(`${PATHS.questions}/${a.id}`, { order: b.order });
+  await update(`${PATHS.questions}/${b.id}`, { order: a.order });
+}
+
+// ─── Keyboard shortcuts ─────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeCatModal(); closeQModal(); }
+});
+document.getElementById('cat-name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveCat();
+});
+</script>
+</body>
+</html>
