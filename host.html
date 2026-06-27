@@ -517,7 +517,7 @@ async function toggleBuzzer() {
   await update('session', { locked: !session?.locked });
 }
 async function resetBuzzers() {
-  await update('session', { locked: false, buzzer: { order: [], firstId: null }, lockedPlayers: [] });
+  await update('session', { locked: false, buzzer: { order: [], firstId: null }, lockedPlayers: [], answerRevealed: false });
   // clear player answers
   const upd = {};
   ['p1','p2','p3','p4'].forEach(pid => { upd[`session/players/${pid}/answer`] = ''; });
@@ -646,7 +646,7 @@ function renderQPanel() {
 function loadQuestion(id) {
   currentQId = id;
   answersRevealed = false;
-  update('session', { mediaRevealed: false, mediaAction: null, mediaTime: 0, revealMediaRevealed: false, revealMediaAction: null });
+  update('session', { mediaRevealed: false, mediaAction: null, mediaTime: 0, revealMediaRevealed: false, revealMediaAction: null, answerRevealed: false });
   renderQPanel();
   renderCurrentQuestion();
 }
@@ -788,7 +788,7 @@ function revealAnswer() {
   const hasRevealMedia = !!(q.revealType && q.revealUrl);
   update('session', {
     phase: 'reveal',
-    // Auto-reveal media together with answer – no second click needed
+    answerRevealed: true,
     revealMediaRevealed: hasRevealMedia,
     currentQuestion: {
       ...q,
