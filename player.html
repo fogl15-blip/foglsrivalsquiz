@@ -624,6 +624,9 @@ function renderBuzzerState() {
   const alreadyBuzzed = myRank >= 0;
   const locked = session.locked;
 
+  const lockedPlayers = session?.lockedPlayers || [];
+  const isPersonallyLocked = lockedPlayers.includes(mySlot);
+
   btn.classList.remove('locked','already');
   if (alreadyBuzzed) {
     btn.classList.add('already');
@@ -634,6 +637,10 @@ function renderBuzzerState() {
       status.textContent = `Du hast gebuzzt – Rang #${myRank + 1}`;
       status.className = 'buzz-status';
     }
+  } else if (isPersonallyLocked) {
+    btn.classList.add('locked');
+    status.textContent = '🚫 Du wurdest für diese Runde gesperrt.';
+    status.className = 'buzz-status warn';
   } else if (locked) {
     btn.classList.add('locked');
     status.textContent = '🔒 Buzzer gesperrt – warte auf Host.';
@@ -649,7 +656,8 @@ async function doBuzz(e) {
   if (!session || !mySlot) return;
   const locked = session.locked;
   const order = session.buzzer?.order || [];
-  if (locked || order.includes(mySlot)) return;
+  const lockedPlayers = session.lockedPlayers || [];
+  if (locked || order.includes(mySlot) || lockedPlayers.includes(mySlot)) return;
 
   // Ripple effect
   const btn = document.getElementById('buzz-btn');

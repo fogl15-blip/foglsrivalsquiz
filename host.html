@@ -251,6 +251,18 @@ header nav a:hover { color: var(--text); }
 .pts-chip:hover { background: var(--border2); }
 .pts-chip.active { background: var(--accent); color: #fff; }
 
+.pts-chip-correct, .pts-chip-wrong {
+  flex: 1; min-width: 36px; padding: 6px 4px;
+  background: var(--border); border: none; border-radius: 7px;
+  color: var(--text); font-family: 'Rajdhani', sans-serif;
+  font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s; text-align: center;
+}
+.pts-chip-correct:hover { background: rgba(34,197,94,0.2); }
+.pts-chip-correct.active { background: #22c55e; color: #fff; }
+.pts-chip-wrong:hover { background: rgba(239,68,68,0.2); }
+.pts-chip-wrong.active { background: #ef4444; color: #fff; }
+
 .award-row { display: flex; gap: 8px; }
 </style>
 </head>
@@ -302,20 +314,48 @@ header nav a:hover { color: var(--text); }
     <!-- Points -->
     <div class="panel-section">
       <h3>Punkte vergeben</h3>
-      <div class="pts-chips" id="pts-chips">
-        <button class="pts-chip active" data-v="1">+1</button>
-        <button class="pts-chip" data-v="2">+2</button>
-        <button class="pts-chip" data-v="3">+3</button>
-        <button class="pts-chip" data-v="5">+5</button>
-        <button class="pts-chip" data-v="-1">−1</button>
-      </div>
+
+      <!-- Spieler Auswahl -->
       <div class="award-row">
         <select class="input" id="award-player-sel" style="flex:1;">
           <option value="">– Spieler –</option>
         </select>
-        <button class="btn success sm" onclick="awardPoints()">✅ Richtig</button>
       </div>
-      <button class="btn ghost sm w-full" style="border-color:#ef4444;color:#ef4444;" onclick="awardAllExceptFirst()">❌ Falsch → alle anderen +Pkt.</button>
+
+      <!-- Richtig -->
+      <div style="display:flex;flex-direction:column;gap:6px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:10px;">
+        <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#22c55e;">✅ Richtig – Punkte für Buzzer</div>
+        <div class="pts-chips" id="pts-chips-correct">
+          <button class="pts-chip-correct active" data-v="1">+1</button>
+          <button class="pts-chip-correct" data-v="2">+2</button>
+          <button class="pts-chip-correct" data-v="3">+3</button>
+          <button class="pts-chip-correct" data-v="5">+5</button>
+          <button class="pts-chip-correct" data-v="10">+10</button>
+        </div>
+        <button class="btn success sm w-full" onclick="awardPoints()">✅ Vergeben + Buzzer frei</button>
+      </div>
+
+      <!-- Falsch -->
+      <div style="display:flex;flex-direction:column;gap:6px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px;">
+        <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ef4444;">❌ Falsch – Punkte für alle anderen</div>
+        <div class="pts-chips" id="pts-chips-wrong">
+          <button class="pts-chip-wrong active" data-v="0">+0</button>
+          <button class="pts-chip-wrong" data-v="1">+1</button>
+          <button class="pts-chip-wrong" data-v="2">+2</button>
+          <button class="pts-chip-wrong" data-v="3">+3</button>
+          <button class="pts-chip-wrong" data-v="5">+5</button>
+        </div>
+        <!-- Buzzer-Sperre Toggle -->
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0 2px;">
+          <div id="lock-toggle" onclick="toggleWrongLock()"
+            style="width:36px;height:20px;border-radius:10px;background:var(--border);cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;">
+            <div id="lock-toggle-knob"
+              style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left 0.2s;"></div>
+          </div>
+          <span style="font-size:0.75rem;color:var(--muted);" id="lock-toggle-label">Buzzer nach Falsch sperren: <strong>Aus</strong></span>
+        </div>
+        <button class="btn sm w-full" style="background:#ef4444;" onclick="awardAllExceptFirst()">❌ Vergeben + Buzzer frei</button>
+      </div>
     </div>
 
     <!-- Question List -->
@@ -349,7 +389,9 @@ let session  = null;
 let questions = {};
 let cats     = {};
 let currentQId = null;
-let selectedPts = 1;
+let selectedPtsCorrect = 3;
+let selectedPtsWrong = 1;
+let wrongLockEnabled = false;
 let timerInterval = null;
 let timerStart = null;
 let doneQIds = new Set();
@@ -475,7 +517,7 @@ async function toggleBuzzer() {
   await update('session', { locked: !session?.locked });
 }
 async function resetBuzzers() {
-  await update('session', { locked: false, buzzer: { order: [], firstId: null } });
+  await update('session', { locked: false, buzzer: { order: [], firstId: null }, lockedPlayers: [] });
   // clear player answers
   const upd = {};
   ['p1','p2','p3','p4'].forEach(pid => { upd[`session/players/${pid}/answer`] = ''; });
@@ -496,10 +538,17 @@ function renderAwardSelect() {
     }).join('');
 }
 
-document.querySelectorAll('.pts-chip').forEach(btn => {
+document.querySelectorAll('.pts-chip-correct').forEach(btn => {
   btn.addEventListener('click', () => {
-    selectedPts = parseInt(btn.dataset.v);
-    document.querySelectorAll('.pts-chip').forEach(b => b.classList.remove('active'));
+    selectedPtsCorrect = parseInt(btn.dataset.v);
+    document.querySelectorAll('.pts-chip-correct').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('.pts-chip-wrong').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedPtsWrong = parseInt(btn.dataset.v);
+    document.querySelectorAll('.pts-chip-wrong').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   });
 });
@@ -508,20 +557,11 @@ async function awardPoints() {
   const pid = document.getElementById('award-player-sel').value;
   if (!pid) { showToast('Spieler auswählen!', 'err'); return; }
   const cur = session?.players?.[pid]?.score || 0;
-  await update(`session/players/${pid}`, { score: cur + selectedPts });
-  showToast(`${selectedPts>0?'+':''}${selectedPts} Pkt. für ${session?.players?.[pid]?.name || pid}`, 'ok');
+  await update(`session/players/${pid}`, { score: cur + selectedPtsCorrect });
+  showToast(`✅ +${selectedPtsCorrect} Pkt. → ${session?.players?.[pid]?.name || pid}`, 'ok');
+  await resetBuzzers(); // clears lockedPlayers too
 }
 
-async function awardToFirst() {
-  const firstId = session?.buzzer?.order?.[0];
-  if (!firstId) { showToast('Noch kein Buzz!', 'err'); return; }
-  const cur = session?.players?.[firstId]?.score || 0;
-  await update(`session/players/${firstId}`, { score: cur + selectedPts });
-  showToast(`✅ +${selectedPts} Pkt. → ${session?.players?.[firstId]?.name} · Buzzer freigegeben`, 'ok');
-  await resetBuzzers();
-}
-
-// awardPoints now uses the select (auto-filled with first buzzer)
 
 
 async function awardAllExceptFirst() {
@@ -536,12 +576,33 @@ async function awardAllExceptFirst() {
   const names = [];
   recipients.forEach(pid => {
     const cur = players[pid]?.score || 0;
-    upd[`session/players/${pid}/score`] = cur + selectedPts;
+    upd[`session/players/${pid}/score`] = cur + selectedPtsWrong;
     names.push(players[pid]?.name || pid);
   });
+
+  // Lock the wrong player's buzzer for this round if enabled
+  if (wrongLockEnabled && firstId) {
+    const lockedList = session?.lockedPlayers || [];
+    if (!lockedList.includes(firstId)) {
+      upd[`session/lockedPlayers`] = [...lockedList, firstId];
+    }
+    const wrongName = players[firstId]?.name || firstId;
+    showToast(`❌ ${wrongName} gesperrt · +${selectedPtsWrong} Pkt. für andere`, 'ok');
+  } else {
+    showToast(`❌ +${selectedPtsWrong} Pkt. → ${names.join(', ')}`, 'ok');
+  }
+
   await firebase.database().ref().update(upd);
-  showToast(`❌ +${selectedPts} Pkt. → ${names.join(', ')} · Buzzer freigegeben`, 'ok');
-  await resetBuzzers();
+
+  // Reset buzzers but keep lockedPlayers
+  await update('session', {
+    locked: false,
+    buzzer: { order: [], firstId: null }
+  });
+  // Clear player answers
+  const ansUpd = {};
+  allPids.forEach(pid => { ansUpd[`session/players/${pid}/answer`] = ''; });
+  await firebase.database().ref().update(ansUpd);
 }
 
 // ─── Question Panel ──────────────────────────────────────
@@ -792,6 +853,23 @@ async function resetSession() {
   await set('session', defaultSession());
   currentQId = null; doneQIds.clear(); answersRevealed = false;
   showToast('Reset ✓');
+}
+
+// ─── Wrong Lock Toggle ───────────────────────────────
+function toggleWrongLock() {
+  wrongLockEnabled = !wrongLockEnabled;
+  const toggle = document.getElementById('lock-toggle');
+  const knob   = document.getElementById('lock-toggle-knob');
+  const label  = document.getElementById('lock-toggle-label');
+  if (wrongLockEnabled) {
+    toggle.style.background = '#ef4444';
+    knob.style.left = '18px';
+    label.innerHTML = 'Buzzer nach Falsch sperren: <strong style="color:#ef4444;">An</strong>';
+  } else {
+    toggle.style.background = 'var(--border)';
+    knob.style.left = '2px';
+    label.innerHTML = 'Buzzer nach Falsch sperren: <strong>Aus</strong>';
+  }
 }
 
 // ─── Media Control ───────────────────────────────────
