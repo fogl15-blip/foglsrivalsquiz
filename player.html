@@ -688,6 +688,21 @@ function submitAnswer(val) {
     await update(`session/players/${mySlot}`, { answer: val });
   }, 400);
 }
+
+// ─── Spacebar Buzz ───────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space') return;
+  // Don't buzz when typing in a text field
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  e.preventDefault();
+  // Simulate buzz button click with a center-tap event
+  const btn = document.getElementById('buzz-btn');
+  if (!btn) return;
+  const rect = btn.getBoundingClientRect();
+  const fakeEvent = { clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2 };
+  doBuzz(fakeEvent);
+});
 </script>
 </body>
 </html>
