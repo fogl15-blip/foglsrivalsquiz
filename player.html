@@ -342,6 +342,33 @@ const SLOT_ICONS = ['🦊','🐺','🦁','🐉'];
 let mySlot = null;
 let session = null;
 
+// ─── Sound System ─────────────────────────────────────
+let lastSoundTs = 0;
+let systemSoundsMuted = false;
+
+function playSound(name) {
+  if (systemSoundsMuted) return;
+  const audio = new Audio('audio/' + name + '.mp3');
+  audio.volume = 1.0;
+  audio.play().catch(() => {});
+}
+
+function toggleMute() {
+  systemSoundsMuted = !systemSoundsMuted;
+  const btn = document.getElementById('mute-btn');
+  if (btn) {
+    btn.textContent = systemSoundsMuted ? '🔇' : '🔊';
+    btn.title = systemSoundsMuted ? 'System-Sounds einschalten' : 'System-Sounds muten';
+    btn.style.color = systemSoundsMuted ? '#ef4444' : '';
+  }
+}
+
+on('session/soundTrigger', trigger => {
+  if (!trigger || trigger.ts === lastSoundTs) return;
+  lastSoundTs = trigger.ts;
+  playSound(trigger.name);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('name-input')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') confirmName();
