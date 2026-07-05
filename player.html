@@ -312,7 +312,10 @@ body {
     </div>
     <div class="spacer"></div>
     <div class="score-pill" id="gh-score">0</div>
-    <button class="leave-btn" onclick="leaveSlot()">✕ Verlassen</button>
+  <button id="mute-btn" onclick="toggleMute()"
+    style="background:transparent;border:none;font-size:1.1rem;cursor:pointer;padding:4px 6px;border-radius:6px;line-height:1;flex-shrink:0;"
+    title="System-Sounds muten">🔊</button>
+    <button class="leave-btn" onclick="leaveSlot()" style="flex-shrink:0;">✕</button>
   </div>
 
   <div class="q-display" id="q-display" style="display:none;"></div>
