@@ -245,6 +245,21 @@ body {
 .buzz-status.active { color: #22c55e; font-weight: 600; }
 .buzz-status.warn   { color: #ef4444; }
 
+.buzzed-list {
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.bz-item {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 12px; font-size: 0.85rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+.bz-item.me { border-color: var(--pc, #5b6ef5); background: rgba(255,255,255,0.08); }
+.bz-rank { font-family: 'Rajdhani', sans-serif; font-size: 0.95rem; font-weight: 700; min-width: 22px; color: var(--pc, #5b6ef5); }
+.bz-name { flex: 1; font-weight: 500; color: #fff; }
+
 .answer-area {
   width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 8px;
   padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
@@ -327,6 +342,8 @@ body {
     </button>
 
     <div class="buzz-status" id="buzz-status">Bereit – warte auf den Host.</div>
+
+    <div class="buzzed-list" id="buzzed-list"></div>
 
     <div class="answer-area">
       <input class="answer-input" id="answer-input"
@@ -488,6 +505,7 @@ function renderGameScreen() {
 
   renderQuestion();
   renderBuzzerState();
+  renderBuzzedList();
 }
 
 let lastMediaAction = null;
@@ -678,6 +696,24 @@ function renderBuzzerState() {
     status.textContent = 'Bereit – drücke den Buzzer!';
     status.className = 'buzz-status';
   }
+}
+
+function renderBuzzedList() {
+  const el = document.getElementById('buzzed-list');
+  if (!el || !session) return;
+  const order = session.buzzer?.order || [];
+  if (!order.length) { el.innerHTML = ''; return; }
+  const players = session.players || {};
+  el.innerHTML = order.map((pid, i) => {
+    const p = players[pid];
+    const name = p?.name || pid;
+    const color = p?.color || '#5b6ef5';
+    const isMe = pid === mySlot;
+    return `<div class="bz-item ${isMe?'me':''}" style="--pc:${esc(color)};">
+      <span class="bz-rank">${i===0?'🥇':'#'+(i+1)}</span>
+      <span class="bz-name">${esc(name)}${isMe?' (Du)':''}</span>
+    </div>`;
+  }).join('');
 }
 
 // ─── Buzz ────────────────────────────────────────────────

@@ -800,11 +800,16 @@ function renderCurrentQuestion() {
       </div>`;
   }
 
-  const answerHtml = answersRevealed
-    ? `<div class="q-answer-reveal">✅ Antwort: ${esc(q.answer || '–')}</div>`
-    : `<button class="btn warn sm" onclick="revealAnswer()" style="align-self:flex-start;">
-        👁 Antwort aufdecken
-      </button>`;
+  const answerHtml = `
+    <div class="q-answer-reveal">✅ Antwort: ${esc(q.answer || '–')}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:2px;">
+      <span style="font-size:0.75rem;font-weight:600;${answersRevealed ? 'color:#22c55e;' : 'color:var(--muted);'}">
+        ${answersRevealed ? '👁 Spielern gezeigt' : '🙈 Spielern noch nicht gezeigt'}
+      </span>
+      <button class="btn ${answersRevealed?'warn':'success'} sm" onclick="toggleAnswerReveal()" style="margin-left:auto;">
+        ${answersRevealed ? '🙈 Verbergen' : '👁 Für Spieler aufdecken'}
+      </button>
+    </div>`;
 
   stage.innerHTML = `
     <div class="q-stage-card">
@@ -833,22 +838,31 @@ function renderCurrentQuestion() {
   }
 }
 
-function revealAnswer() {
-  answersRevealed = true;
+function toggleAnswerReveal() {
   const q = questions[currentQId];
   if (!q) return;
-  const hasRevealMedia = !!(q.revealType && q.revealUrl);
-  update('session', {
-    phase: 'reveal',
-    answerRevealed: true,
-    revealMediaRevealed: hasRevealMedia,
-    currentQuestion: {
-      ...q,
-      id: currentQId,
-      revealType: q.revealType || '',
-      revealUrl:  q.revealUrl  || '',
-    }
-  });
+  answersRevealed = !answersRevealed;
+
+  if (answersRevealed) {
+    const hasRevealMedia = !!(q.revealType && q.revealUrl);
+    update('session', {
+      phase: 'reveal',
+      answerRevealed: true,
+      revealMediaRevealed: hasRevealMedia,
+      currentQuestion: {
+        ...q,
+        id: currentQId,
+        revealType: q.revealType || '',
+        revealUrl:  q.revealUrl  || '',
+      }
+    });
+  } else {
+    update('session', {
+      phase: 'question',
+      answerRevealed: false,
+      revealMediaRevealed: false,
+    });
+  }
   renderCurrentQuestion();
 }
 
