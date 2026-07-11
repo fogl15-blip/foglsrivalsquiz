@@ -548,6 +548,7 @@ function openQuestionModal(type, editId) {
   updatePtsDisplay();
   document.getElementById('q-modal').classList.add('open');
   updateMediaPreview(type, existing);
+  toggleRevealFields();
 }
 function closeQModal() { document.getElementById('q-modal').classList.remove('open'); }
 
@@ -643,21 +644,12 @@ function buildQForm(type, q) {
       <label>Typ</label>
       <select class="input" id="qf-reveal-type" onchange="toggleRevealFields()" style="margin-bottom:10px;">
         <option value="">– kein Medium –</option>
-        <option value="image">🖼️ Bild</option>
-        <option value="audio">🎵 Audio</option>
-        <option value="video">🎬 Video</option>
+        <option value="image" ${q?.revealType==='image'?'selected':''}>🖼️ Bild</option>
+        <option value="audio" ${q?.revealType==='audio'?'selected':''}>🎵 Audio</option>
+        <option value="video" ${q?.revealType==='video'?'selected':''}>🎬 Video</option>
       </select>
       <div id="reveal-fields"></div>
     </div>`;
-
-  // Set reveal type select value and populate fields after DOM is ready
-  setTimeout(() => {
-    const revSel = document.getElementById('qf-reveal-type');
-    if (revSel && q && q.revealType) {
-      revSel.value = q.revealType;
-      toggleRevealFields();
-    }
-  }, 0);
 }
 
 function buildVideoEmbed(url) {
