@@ -151,22 +151,19 @@ body {
   display: block;
 }
 
-/* Crossfade: question image blends into the reveal image on the same spot */
+/* Side-by-side: question image and reveal image shown next to each other */
 .q-crossfade {
-  position: relative;
+  display: flex;
+  gap: 10px;
   width: 100%;
   margin-top: 6px;
 }
-.q-crossfade .q-image-player { display: block; }
-.q-crossfade .cf-answer {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-}
-.q-crossfade.cf-animate .cf-question { animation: cfOut 0.7s ease forwards; }
-.q-crossfade.cf-animate .cf-answer   { animation: cfIn 0.7s ease forwards; }
-.q-crossfade.cf-settled .cf-question { opacity: 0; }
-.q-crossfade.cf-settled .cf-answer   { opacity: 1; }
-@keyframes cfOut { from { opacity: 1; } to { opacity: 0; } }
+.q-crossfade .cf-item { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.q-crossfade .q-image-player { width: 100%; }
+.q-crossfade .cf-answer { opacity: 0; }
+.q-crossfade.cf-animate .cf-answer { animation: cfIn 0.7s ease forwards; }
+.q-crossfade.cf-settled .cf-answer { opacity: 1; }
+.cf-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 @keyframes cfIn  { from { opacity: 0; } to { opacity: 1; } }
 /* Fade-in only: reveal image with no question image to crossfade from */
 .cf-solo-answer.cf-animate { animation: cfIn 0.7s ease forwards; }
@@ -655,8 +652,8 @@ function renderQuestion() {
       lastCrossfadeKey = cfKey;
       if (hasQuestionImg) {
         combinedMedia = '<div class="q-crossfade' + (animateCf ? ' cf-animate' : ' cf-settled') + '">'
-          + '<img src="' + esc(q.imageUrl) + '" class="q-image-player cf-question" alt="Frage">'
-          + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-answer" alt="Auflösung">'
+          + '<div class="cf-item"><img src="' + esc(q.imageUrl) + '" class="q-image-player cf-question" alt="Frage"><div class="cf-label">Frage</div></div>'
+          + '<div class="cf-item"><img src="' + esc(revealUrl) + '" class="q-image-player cf-answer" alt="Auflösung"><div class="cf-label">Auflösung</div></div>'
           + '</div>';
       } else {
         combinedMedia = mediaHtml

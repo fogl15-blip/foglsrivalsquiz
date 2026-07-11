@@ -171,18 +171,14 @@ header nav a:hover { color: var(--text); }
 .q-image { max-width: 100%; max-height: 280px; border-radius: 10px; object-fit: contain; display: block; }
 .q-hint { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
 
-/* Crossfade: question image blends into the reveal image on the same spot */
-.q-crossfade { position: relative; width: 100%; }
-.q-crossfade .q-image { display: block; }
-.q-crossfade .cf-answer {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-}
-.q-crossfade.cf-animate .cf-question { animation: cfOut 0.7s ease forwards; }
-.q-crossfade.cf-animate .cf-answer   { animation: cfIn 0.7s ease forwards; }
-.q-crossfade.cf-settled .cf-question { opacity: 0; }
-.q-crossfade.cf-settled .cf-answer   { opacity: 1; }
-@keyframes cfOut { from { opacity: 1; } to { opacity: 0; } }
+/* Side-by-side: question image and reveal image shown next to each other */
+.q-crossfade { display: flex; gap: 12px; width: 100%; }
+.q-crossfade .cf-item { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.q-crossfade .q-image { width: 100%; }
+.q-crossfade .cf-answer { opacity: 0; }
+.q-crossfade.cf-animate .cf-answer { animation: cfIn 0.7s ease forwards; }
+.q-crossfade.cf-settled .cf-answer { opacity: 1; }
+.cf-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 @keyframes cfIn  { from { opacity: 0; } to { opacity: 1; } }
 /* Fade-in only: reveal image with no question image to crossfade from */
 .cf-solo-answer.cf-animate { animation: cfIn 0.7s ease forwards; }
@@ -831,8 +827,14 @@ function renderCurrentQuestion() {
       const animateCf = cfKey !== lastHostCrossfadeKey;
       lastHostCrossfadeKey = cfKey;
       mediaHtml += `<div class="q-crossfade${animateCf ? ' cf-animate' : ' cf-settled'}">
-        <img src="${esc(q.imageUrl)}" class="q-image cf-question" alt="Frage-Bild">
-        <img src="${esc(q.revealUrl)}" class="q-image cf-answer" alt="Auflösung">
+        <div class="cf-item">
+          <img src="${esc(q.imageUrl)}" class="q-image cf-question" alt="Frage-Bild">
+          <div class="cf-label">Frage</div>
+        </div>
+        <div class="cf-item">
+          <img src="${esc(q.revealUrl)}" class="q-image cf-answer" alt="Auflösung">
+          <div class="cf-label">Auflösung</div>
+        </div>
       </div>`;
     } else {
       lastHostCrossfadeKey = null;
