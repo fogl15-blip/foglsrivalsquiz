@@ -26,6 +26,14 @@ header nav a {
   transition: color 0.2s;
 }
 header nav a:hover { color: var(--text); }
+.audio-boost {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px 5px 10px;
+  font-size: 0.75rem; color: var(--muted);
+}
+.audio-boost input[type="range"] { width: 70px; accent-color: var(--primary, #5b6ef5); }
+.audio-boost .ab-val { min-width: 40px; text-align: right; color: var(--text); font-weight: 600; }
 .phase-badge {
   font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
   text-transform: uppercase; padding: 4px 12px; border-radius: 20px;
@@ -289,6 +297,11 @@ header nav a:hover { color: var(--text); }
   <h1 class="gradient-text">⚡ QuizBuzz</h1>
   <span class="phase-badge" id="phase-badge">Lobby</span>
   <div class="spacer"></div>
+  <div class="audio-boost" title="Verstärkt Frage-/Auflösungs-Audio für Host & alle Spieler">
+    🔊 Boost
+    <input type="range" id="audio-boost-slider" min="0" max="5" step="0.5" value="0" oninput="setAudioBoost(this.value)">
+    <span class="ab-val" id="audio-boost-val">0 dB</span>
+  </div>
   <nav>
     <a href="editor.html">Fragen-Editor</a>
     <a href="overlay.html" target="_blank">OBS Overlay ↗</a>
@@ -437,8 +450,55 @@ let doneQIds = new Set();
 let answersRevealed = false;
 let lastHostCrossfadeKey = null;
 
+// ─── Audio Boost (Web Audio gain, since native volume caps at 100%) ──
+let audioCtx = null;
+let boostGain = null;
+const boostWired = new WeakSet();
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+  return audioCtx;
+}
+function getBoostGain() {
+  const ctx = getAudioCtx();
+  if (!boostGain) {
+    boostGain = ctx.createGain();
+    boostGain.connect(ctx.destination);
+  }
+  return boostGain;
+}
+function wireAudioBoost(el) {
+  if (!el || boostWired.has(el)) return;
+  try {
+    const ctx = getAudioCtx();
+    const src = ctx.createMediaElementSource(el);
+    src.connect(getBoostGain());
+    boostWired.add(el);
+  } catch (e) { /* not wireable (e.g. already captured elsewhere) */ }
+}
+function applyAudioBoostDb(db) {
+  const gainVal = Math.pow(10, (db || 0) / 20);
+  const g = getBoostGain();
+  g.gain.setTargetAtTime(gainVal, getAudioCtx().currentTime, 0.05);
+}
+function setAudioBoost(db) {
+  db = parseFloat(db);
+  document.getElementById('audio-boost-val').textContent = db.toFixed(1) + ' dB';
+  applyAudioBoostDb(db);
+  update('session', { audioBoostDb: db });
+}
+function syncAudioBoostUi(db) {
+  db = db || 0;
+  applyAudioBoostDb(db);
+  const slider = document.getElementById('audio-boost-slider');
+  const val = document.getElementById('audio-boost-val');
+  if (slider && document.activeElement !== slider) slider.value = db;
+  if (val) val.textContent = db.toFixed(1) + ' dB';
+}
+
 // ─── Firebase Listeners ─────────────────────────────────
-on('session',           d => { session = d; renderAll(); });
+on('session',           d => { session = d; syncAudioBoostUi(d?.audioBoostDb); renderAll(); });
 on(PATHS.questions,     d => { questions = d || {}; renderQPanel(); });
 on(PATHS.categories,    d => { cats = d || {}; renderCatFilter(); renderQPanel(); });
 
@@ -870,6 +930,11 @@ function renderCurrentQuestion() {
 
   // Start timer
   if (q.timeLimit) startTimer(q.timeLimit);
+
+  // Wire audio-boost gain onto freshly rendered audio elements
+  wireAudioBoost(document.getElementById('host-audio'));
+  wireAudioBoost(document.getElementById('reveal-audio'));
+  applyAudioBoostDb(session?.audioBoostDb || 0);
 
   // push question to session (for overlay) - only set phase if not already revealing
   if (!answersRevealed) {

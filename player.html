@@ -504,6 +504,39 @@ let lastMediaAction = null;
 let lastMediaSyncTs = 0;
 let lastCrossfadeKey = null;
 
+// ─── Audio Boost (Web Audio gain, mirrors host's slider) ──
+let audioCtx = null;
+let boostGain = null;
+const boostWired = new WeakSet();
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+  return audioCtx;
+}
+function getBoostGain() {
+  const ctx = getAudioCtx();
+  if (!boostGain) {
+    boostGain = ctx.createGain();
+    boostGain.connect(ctx.destination);
+  }
+  return boostGain;
+}
+function wireAudioBoost(el) {
+  if (!el || boostWired.has(el)) return;
+  try {
+    const ctx = getAudioCtx();
+    const src = ctx.createMediaElementSource(el);
+    src.connect(getBoostGain());
+    boostWired.add(el);
+  } catch (e) { /* not wireable */ }
+}
+function applyAudioBoostDb(db) {
+  const gainVal = Math.pow(10, (db || 0) / 20);
+  const g = getBoostGain();
+  g.gain.setTargetAtTime(gainVal, getAudioCtx().currentTime, 0.05);
+}
+
 function renderQuestion() {
   const qDisp = document.getElementById('q-display');
   const q = session?.currentQuestion;
@@ -621,6 +654,11 @@ function renderQuestion() {
     <div class="q-text-player">${esc(q.question || '')}</div>
     ${combinedMedia}
     ${revealHtml}`;
+
+  // Wire audio-boost gain onto freshly rendered audio elements
+  wireAudioBoost(document.getElementById('player-audio'));
+  wireAudioBoost(document.getElementById('reveal-audio-player'));
+  applyAudioBoostDb(session?.audioBoostDb || 0);
 
   // Sync reveal audio from host
   const revealSyncTs = session?.revealMediaSyncTs || 0;
