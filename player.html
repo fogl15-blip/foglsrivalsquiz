@@ -577,7 +577,7 @@ function renderQuestion() {
         <div style="font-size:0.85rem;color:var(--text);font-weight:500;">Audio wird vom Host abgespielt</div>
         <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">Lautstärke an deinem Gerät regeln</div>
       </div>
-      <audio id="player-audio" src="${esc(q.audioUrl)}" style="display:none;"></audio>
+      <audio id="player-audio" crossorigin="anonymous" src="${esc(q.audioUrl)}" style="display:none;"></audio>
     </div>`;
   }
   if (q.type === 'video' && q.videoUrl) {
@@ -616,7 +616,7 @@ function renderQuestion() {
       } else if (revealType === 'audio') {
         revealMediaHtml = '<div style="margin-top:8px;background:var(--surface2);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">'
           + '<span style="font-size:1.4rem;">🎵</span>'
-          + '<audio id="reveal-audio-player" src="' + esc(revealUrl) + '" style="flex:1;height:36px;" class="q-media-player"></audio>'
+          + '<audio id="reveal-audio-player" crossorigin="anonymous" src="' + esc(revealUrl) + '" style="flex:1;height:36px;" class="q-media-player"></audio>'
           + '</div>';
       } else if (revealType === 'video') {
         const ytMatch = revealUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);

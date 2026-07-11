@@ -845,7 +845,7 @@ function renderCurrentQuestion() {
   if (q.type === 'audio' && q.audioUrl) {
     mediaHtml = `<div class="q-audio-player">
       <span style="font-size:1.5rem;">🔊</span>
-      <audio id="host-audio" controls src="${esc(q.audioUrl)}" style="flex:1;height:36px;" onplay="syncMedia('play')" onpause="syncMedia('pause')" onseeked="syncMedia('seek')"></audio>
+      <audio id="host-audio" controls crossorigin="anonymous" src="${esc(q.audioUrl)}" style="flex:1;height:36px;" onplay="syncMedia('play')" onpause="syncMedia('pause')" onseeked="syncMedia('seek')"></audio>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn success sm" onclick="hostPlayAudio()">▶ Abspielen für alle</button>
@@ -890,7 +890,7 @@ function renderCurrentQuestion() {
         }
       } else if (q.revealType === 'audio') {
         revContent = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-          <audio id="reveal-audio" controls src="${esc(q.revealUrl)}" style="flex:1;height:36px;"
+          <audio id="reveal-audio" controls crossorigin="anonymous" src="${esc(q.revealUrl)}" style="flex:1;height:36px;"
             onplay="syncRevealMedia('play')" onpause="syncRevealMedia('pause')"></audio>
           <button class="btn success sm" onclick="syncRevealMedia('play');document.getElementById('reveal-audio')?.play()">▶ Alle</button>
           <button class="btn warn sm" onclick="syncRevealMedia('pause');document.getElementById('reveal-audio')?.pause()">⏸</button>
