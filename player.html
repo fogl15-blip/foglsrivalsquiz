@@ -157,9 +157,10 @@ body {
   gap: 10px;
   width: 100%;
   margin-top: 6px;
+  justify-content: center;
 }
-.q-crossfade .cf-item { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.q-crossfade .q-image-player { width: 100%; }
+.q-crossfade .cf-item { flex: 0 1 auto; max-width: 48%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.q-crossfade .q-image-player { width: auto; max-width: 100%; }
 .q-crossfade .cf-answer { opacity: 0; }
 .q-crossfade.cf-animate .cf-answer { animation: cfIn 0.7s ease forwards; }
 .q-crossfade.cf-settled .cf-answer { opacity: 1; }
