@@ -163,6 +163,20 @@ header nav a:hover { color: var(--text); }
 .q-image { max-width: 100%; max-height: 280px; border-radius: 10px; object-fit: contain; display: block; }
 .q-hint { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
 
+/* Crossfade: question image blends into the reveal image on the same spot */
+.q-crossfade { position: relative; width: 100%; }
+.q-crossfade .q-image { display: block; }
+.q-crossfade .cf-answer {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+}
+.q-crossfade.cf-animate .cf-question { animation: cfOut 0.7s ease forwards; }
+.q-crossfade.cf-animate .cf-answer   { animation: cfIn 0.7s ease forwards; }
+.q-crossfade.cf-settled .cf-question { opacity: 0; }
+.q-crossfade.cf-settled .cf-answer   { opacity: 1; }
+@keyframes cfOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cfIn  { from { opacity: 0; } to { opacity: 1; } }
+
 .q-audio-player {
   display: flex; align-items: center; gap: 14px;
   background: var(--surface2); border-radius: 10px; padding: 14px 18px;
@@ -418,6 +432,7 @@ let timerInterval = null;
 let timerStart = null;
 let doneQIds = new Set();
 let answersRevealed = false;
+let lastHostCrossfadeKey = null;
 
 // ─── Firebase Listeners ─────────────────────────────────
 on('session',           d => { session = d; renderAll(); });
@@ -718,17 +733,33 @@ function renderCurrentQuestion() {
 
   const mediaRevealed = session?.mediaRevealed || false;
   const mediaPlaying  = session?.mediaPlaying  || false;
+  const revealMediaRevealed = session?.revealMediaRevealed || false;
+
+  const hasHostQuestionImg = (q.type === 'image' || q.type === 'combo') && q.imageUrl;
+  const hostCrossfade = hasHostQuestionImg && q.revealType === 'image' && !!q.revealUrl && revealMediaRevealed;
 
   let mediaHtml = '';
-  if ((q.type === 'image' || q.type === 'combo') && q.imageUrl) {
+  if (hasHostQuestionImg) {
     mediaHtml = `
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button class="btn ${mediaRevealed?'warn':'success'} sm" onclick="toggleMediaReveal()">
           ${mediaRevealed ? '🙈 Bild verbergen' : '👁 Bild aufdecken'}
         </button>
         ${mediaRevealed ? `<span style="font-size:0.75rem;color:var(--muted);">Spieler sehen das Bild</span>` : `<span style="font-size:0.75rem;color:var(--muted);">Bild noch verborgen</span>`}
-      </div>
-      <img src="${esc(q.imageUrl)}" class="q-image" alt="Frage-Bild" style="opacity:1;">`;
+      </div>`;
+
+    if (hostCrossfade) {
+      const cfKey = currentQId + ':img-reveal';
+      const animateCf = cfKey !== lastHostCrossfadeKey;
+      lastHostCrossfadeKey = cfKey;
+      mediaHtml += `<div class="q-crossfade${animateCf ? ' cf-animate' : ' cf-settled'}">
+        <img src="${esc(q.imageUrl)}" class="q-image cf-question" alt="Frage-Bild">
+        <img src="${esc(q.revealUrl)}" class="q-image cf-answer" alt="Auflösung">
+      </div>`;
+    } else {
+      lastHostCrossfadeKey = null;
+      mediaHtml += `<img src="${esc(q.imageUrl)}" class="q-image" alt="Frage-Bild" style="opacity:1;">`;
+    }
   }
   if (q.type === 'combo' && q.hint) {
     mediaHtml += `<div class="q-hint">💬 ${esc(q.hint)}</div>`;
@@ -764,8 +795,6 @@ function renderCurrentQuestion() {
     ? `<span style="color:${esc(cat.color)};font-size:0.75rem;">${esc(cat.name)}</span>`
     : '';
 
-  const revealMediaRevealed = session?.revealMediaRevealed || false;
-
   let revealMediaHtml = '';
   if (answersRevealed && q.revealType && q.revealUrl) {
     const revIcon = { image:'🖼️', audio:'🎵', video:'🎬' }[q.revealType] || '📎';
@@ -773,7 +802,7 @@ function renderCurrentQuestion() {
     let revContent = '';
     if (revealMediaRevealed) {
       if (q.revealType === 'image') {
-        revContent = `<img src="${esc(q.revealUrl)}" style="max-width:100%;max-height:220px;border-radius:8px;margin-top:8px;display:block;">`;
+        revContent = hostCrossfade ? '' : `<img src="${esc(q.revealUrl)}" style="max-width:100%;max-height:220px;border-radius:8px;margin-top:8px;display:block;">`;
       } else if (q.revealType === 'audio') {
         revContent = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
           <audio id="reveal-audio" controls src="${esc(q.revealUrl)}" style="flex:1;height:36px;"

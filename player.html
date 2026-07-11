@@ -151,35 +151,24 @@ body {
   display: block;
 }
 
-/* On desktop: question image + reveal image side by side */
-.q-media-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
+/* Crossfade: question image blends into the reveal image on the same spot */
+.q-crossfade {
+  position: relative;
+  width: 100%;
   margin-top: 6px;
-  width: 100%;
 }
-.q-media-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.q-crossfade .q-image-player { display: block; }
+.q-crossfade .cf-answer {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
 }
-.q-media-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  text-align: center;
-}
-.q-media-col .q-image-player {
-  width: 100%;
-  max-height: 420px;
-}
+.q-crossfade.cf-animate .cf-question { animation: cfOut 0.7s ease forwards; }
+.q-crossfade.cf-animate .cf-answer   { animation: cfIn 0.7s ease forwards; }
+.q-crossfade.cf-settled .cf-question { opacity: 0; }
+.q-crossfade.cf-settled .cf-answer   { opacity: 1; }
+@keyframes cfOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cfIn  { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 600px) {
-  .q-media-row { flex-direction: column; }
   .q-image-player { max-height: 240px; }
 }
 .q-reveal-box {
@@ -510,6 +499,7 @@ function renderGameScreen() {
 
 let lastMediaAction = null;
 let lastMediaSyncTs = 0;
+let lastCrossfadeKey = null;
 
 function renderQuestion() {
   const qDisp = document.getElementById('q-display');
@@ -600,25 +590,21 @@ function renderQuestion() {
     }
   }
 
-  // Side-by-side if both question image AND reveal image are visible
+  // Crossfade if both question image AND reveal image are visible
   const hasQuestionImg = (q.type === 'image' || q.type === 'combo') && q.imageUrl;
-  const hasRevealImg   = revealType === 'image' && revealMediaRevealed;
-  const showSideBySide = hasQuestionImg && hasRevealImg;
+  const hasRevealImg   = revealType === 'image' && revealMediaRevealed && !!revealUrl;
 
   let combinedMedia;
-  if (showSideBySide) {
-    // Both images: full-width row, each takes 50%
-    combinedMedia = '<div class="q-media-row">'
-      + '<div class="q-media-col">'
-      + '  <div class="q-media-label">❓ Frage</div>'
-      + '  <img src="' + esc(q.imageUrl) + '" class="q-image-player" alt="Frage">'
-      + '</div>'
-      + '<div class="q-media-col">'
-      + '  <div class="q-media-label">✅ Auflösung</div>'
-      + '  <img src="' + esc(revealUrl) + '" class="q-image-player" alt="Auflösung">'
-      + '</div>'
+  if (hasQuestionImg && hasRevealImg) {
+    const cfKey = (q.id || '') + ':img-reveal';
+    const animateCf = cfKey !== lastCrossfadeKey;
+    lastCrossfadeKey = cfKey;
+    combinedMedia = '<div class="q-crossfade' + (animateCf ? ' cf-animate' : ' cf-settled') + '">'
+      + '<img src="' + esc(q.imageUrl) + '" class="q-image-player cf-question" alt="Frage">'
+      + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-answer" alt="Auflösung">'
       + '</div>';
   } else {
+    lastCrossfadeKey = null;
     combinedMedia = mediaHtml + revealMediaHtml;
   }
 
