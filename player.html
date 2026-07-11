@@ -168,6 +168,9 @@ body {
 .q-crossfade.cf-settled .cf-answer   { opacity: 1; }
 @keyframes cfOut { from { opacity: 1; } to { opacity: 0; } }
 @keyframes cfIn  { from { opacity: 0; } to { opacity: 1; } }
+/* Fade-in only: reveal image with no question image to crossfade from */
+.cf-solo-answer.cf-animate { animation: cfIn 0.7s ease forwards; }
+.cf-solo-answer.cf-settled { opacity: 1; }
 @media (max-width: 600px) {
   .q-image-player { max-height: 240px; }
 }
@@ -568,7 +571,7 @@ function renderQuestion() {
   if (revealType && revealUrl) {
     if (revealMediaRevealed) {
       if (revealType === 'image') {
-        revealMediaHtml = '<img src="' + esc(revealUrl) + '" class="q-image-player" alt="Auflösung" title="✅ Auflösung">';
+        // rendered via combinedMedia below (crossfade or solo fade-in)
       } else if (revealType === 'audio') {
         revealMediaHtml = '<div style="margin-top:8px;background:var(--surface2);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">'
           + '<span style="font-size:1.4rem;">🎵</span>'
@@ -595,14 +598,19 @@ function renderQuestion() {
   const hasRevealImg   = revealType === 'image' && revealMediaRevealed && !!revealUrl;
 
   let combinedMedia;
-  if (hasQuestionImg && hasRevealImg) {
+  if (hasRevealImg) {
     const cfKey = (q.id || '') + ':img-reveal';
     const animateCf = cfKey !== lastCrossfadeKey;
     lastCrossfadeKey = cfKey;
-    combinedMedia = '<div class="q-crossfade' + (animateCf ? ' cf-animate' : ' cf-settled') + '">'
-      + '<img src="' + esc(q.imageUrl) + '" class="q-image-player cf-question" alt="Frage">'
-      + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-answer" alt="Auflösung">'
-      + '</div>';
+    if (hasQuestionImg) {
+      combinedMedia = '<div class="q-crossfade' + (animateCf ? ' cf-animate' : ' cf-settled') + '">'
+        + '<img src="' + esc(q.imageUrl) + '" class="q-image-player cf-question" alt="Frage">'
+        + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-answer" alt="Auflösung">'
+        + '</div>';
+    } else {
+      combinedMedia = mediaHtml
+        + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-solo-answer' + (animateCf ? ' cf-animate' : ' cf-settled') + '" alt="Auflösung" title="✅ Auflösung">';
+    }
   } else {
     lastCrossfadeKey = null;
     combinedMedia = mediaHtml + revealMediaHtml;

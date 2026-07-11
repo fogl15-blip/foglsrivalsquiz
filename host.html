@@ -176,6 +176,9 @@ header nav a:hover { color: var(--text); }
 .q-crossfade.cf-settled .cf-answer   { opacity: 1; }
 @keyframes cfOut { from { opacity: 1; } to { opacity: 0; } }
 @keyframes cfIn  { from { opacity: 0; } to { opacity: 1; } }
+/* Fade-in only: reveal image with no question image to crossfade from */
+.cf-solo-answer.cf-animate { animation: cfIn 0.7s ease forwards; }
+.cf-solo-answer.cf-settled { opacity: 1; }
 
 .q-audio-player {
   display: flex; align-items: center; gap: 14px;
@@ -802,7 +805,14 @@ function renderCurrentQuestion() {
     let revContent = '';
     if (revealMediaRevealed) {
       if (q.revealType === 'image') {
-        revContent = hostCrossfade ? '' : `<img src="${esc(q.revealUrl)}" style="max-width:100%;max-height:220px;border-radius:8px;margin-top:8px;display:block;">`;
+        if (hostCrossfade) {
+          revContent = '';
+        } else {
+          const cfKey = currentQId + ':img-reveal-solo';
+          const animateCf = cfKey !== lastHostCrossfadeKey;
+          lastHostCrossfadeKey = cfKey;
+          revContent = `<img src="${esc(q.revealUrl)}" class="cf-solo-answer${animateCf ? ' cf-animate' : ' cf-settled'}" style="max-width:100%;max-height:220px;border-radius:8px;margin-top:8px;display:block;" alt="Auflösung">`;
+        }
       } else if (q.revealType === 'audio') {
         revContent = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
           <audio id="reveal-audio" controls src="${esc(q.revealUrl)}" style="flex:1;height:36px;"
