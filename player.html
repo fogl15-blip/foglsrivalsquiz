@@ -503,6 +503,7 @@ function renderGameScreen() {
 let lastMediaAction = null;
 let lastMediaSyncTs = 0;
 let lastCrossfadeKey = null;
+let lastQFingerprint = null;
 
 // ─── Audio Boost (Web Audio gain, mirrors host's slider) ──
 let audioCtx = null;
@@ -550,7 +551,7 @@ function renderQuestion() {
   const phase = session?.phase || 'lobby';
   const mediaRevealed = session?.mediaRevealed || false;
 
-  if (!q || phase === 'lobby') { qDisp.style.display = 'none'; return; }
+  if (!q || phase === 'lobby') { qDisp.style.display = 'none'; lastQFingerprint = null; return; }
   qDisp.style.display = 'flex';
 
   const typeIcon = { text:'📝', image:'🖼️', audio:'🎵', video:'🎬', combo:'🎯' };
@@ -633,38 +634,49 @@ function renderQuestion() {
     }
   }
 
-  // Crossfade if both question image AND reveal image are visible
-  const hasQuestionImg = (q.type === 'image' || q.type === 'combo') && q.imageUrl;
-  const hasRevealImg   = revealType === 'image' && revealMediaRevealed && !!revealUrl;
+  // Only rebuild the DOM when something actually display-relevant changed.
+  // renderQuestion() re-runs on EVERY session write, including the pure
+  // playback-sync pings (mediaAction/mediaSyncTs/mediaTime) fired while
+  // audio is already playing - rebuilding innerHTML on those destroys the
+  // live <audio> element mid-playback (duration shows, but sound stops
+  // instantly). Fields that are pure sync signals are deliberately excluded.
+  const qFingerprint = [q.id, phase, mediaRevealed, revealMediaRevealed, showAnswer, revealType, revealUrl].join('|');
+  if (qFingerprint !== lastQFingerprint) {
+    lastQFingerprint = qFingerprint;
 
-  let combinedMedia;
-  if (hasRevealImg) {
-    const cfKey = (q.id || '') + ':img-reveal';
-    const animateCf = cfKey !== lastCrossfadeKey;
-    lastCrossfadeKey = cfKey;
-    if (hasQuestionImg) {
-      combinedMedia = '<div class="q-crossfade' + (animateCf ? ' cf-animate' : ' cf-settled') + '">'
-        + '<img src="' + esc(q.imageUrl) + '" class="q-image-player cf-question" alt="Frage">'
-        + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-answer" alt="Auflösung">'
-        + '</div>';
+    // Crossfade if both question image AND reveal image are visible
+    const hasQuestionImg = (q.type === 'image' || q.type === 'combo') && q.imageUrl;
+    const hasRevealImg   = revealType === 'image' && revealMediaRevealed && !!revealUrl;
+
+    let combinedMedia;
+    if (hasRevealImg) {
+      const cfKey = (q.id || '') + ':img-reveal';
+      const animateCf = cfKey !== lastCrossfadeKey;
+      lastCrossfadeKey = cfKey;
+      if (hasQuestionImg) {
+        combinedMedia = '<div class="q-crossfade' + (animateCf ? ' cf-animate' : ' cf-settled') + '">'
+          + '<img src="' + esc(q.imageUrl) + '" class="q-image-player cf-question" alt="Frage">'
+          + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-answer" alt="Auflösung">'
+          + '</div>';
+      } else {
+        combinedMedia = mediaHtml
+          + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-solo-answer' + (animateCf ? ' cf-animate' : ' cf-settled') + '" alt="Auflösung" title="✅ Auflösung">';
+      }
     } else {
-      combinedMedia = mediaHtml
-        + '<img src="' + esc(revealUrl) + '" class="q-image-player cf-solo-answer' + (animateCf ? ' cf-animate' : ' cf-settled') + '" alt="Auflösung" title="✅ Auflösung">';
+      lastCrossfadeKey = null;
+      combinedMedia = mediaHtml + revealMediaHtml;
     }
-  } else {
-    lastCrossfadeKey = null;
-    combinedMedia = mediaHtml + revealMediaHtml;
+
+    qDisp.innerHTML = `
+      <div class="q-phase-hint">${typeIcon[q.type]||'📝'} ${phase === 'reveal' ? 'Auflösung' : 'Aktuelle Frage'}</div>
+      <div class="q-text-player">${esc(q.question || '')}</div>
+      ${combinedMedia}
+      ${revealHtml}`;
+
+    // Wire audio-boost gain onto freshly rendered audio elements
+    wireAudioBoost(document.getElementById('player-audio'));
+    wireAudioBoost(document.getElementById('reveal-audio-player'));
   }
-
-  qDisp.innerHTML = `
-    <div class="q-phase-hint">${typeIcon[q.type]||'📝'} ${phase === 'reveal' ? 'Auflösung' : 'Aktuelle Frage'}</div>
-    <div class="q-text-player">${esc(q.question || '')}</div>
-    ${combinedMedia}
-    ${revealHtml}`;
-
-  // Wire audio-boost gain onto freshly rendered audio elements
-  wireAudioBoost(document.getElementById('player-audio'));
-  wireAudioBoost(document.getElementById('reveal-audio-player'));
   applyAudioBoostDb(session?.audioBoostDb || 0);
 
   // Sync reveal audio from host

@@ -449,6 +449,7 @@ let timerStart = null;
 let doneQIds = new Set();
 let answersRevealed = false;
 let lastHostCrossfadeKey = null;
+let lastQFingerprint = null;
 
 // ─── Audio Boost (Web Audio gain, since native volume caps at 100%) ──
 let audioCtx = null;
@@ -804,6 +805,13 @@ function renderCurrentQuestion() {
   const mediaRevealed = session?.mediaRevealed || false;
   const mediaPlaying  = session?.mediaPlaying  || false;
   const revealMediaRevealed = session?.revealMediaRevealed || false;
+
+  const qFingerprint = [currentQId, mediaRevealed, revealMediaRevealed, answersRevealed].join('|');
+  if (qFingerprint === lastQFingerprint) {
+    applyAudioBoostDb(session?.audioBoostDb || 0);
+    return;
+  }
+  lastQFingerprint = qFingerprint;
 
   const hasHostQuestionImg = (q.type === 'image' || q.type === 'combo') && q.imageUrl;
   const hostCrossfade = hasHostQuestionImg && q.revealType === 'image' && !!q.revealUrl && revealMediaRevealed;
