@@ -536,6 +536,13 @@ function applyAudioBoostDb(db) {
   const g = getBoostGain();
   g.gain.setTargetAtTime(gainVal, getAudioCtx().currentTime, 0.05);
 }
+// AudioContext.resume() only works reliably inside a real user gesture.
+// wireAudioBoost() gets called from Firebase listener callbacks, not clicks,
+// so without this the context can stay 'suspended' forever (audio plays
+// silently: duration/progress advance but no sound comes out).
+['pointerdown', 'keydown'].forEach(evt => {
+  document.addEventListener(evt, () => { getAudioCtx(); }, { once: true, passive: true });
+});
 
 function renderQuestion() {
   const qDisp = document.getElementById('q-display');
