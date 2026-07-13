@@ -11,6 +11,9 @@ function initFirebase() {
     firebase.initializeApp(FIREBASE_CONFIG);
   }
   db = firebase.database();
+  // Anonymous auth so the database rules can require auth != null,
+  // keeping bots/scanners without a Firebase session out.
+  firebase.auth().signInAnonymously().catch(err => console.error('Anonymous sign-in failed:', err));
   return db;
 }
 
