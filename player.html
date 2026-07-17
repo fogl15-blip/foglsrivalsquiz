@@ -264,6 +264,26 @@ body {
 .answer-input:focus { border-color: var(--pc, #5b6ef5); }
 .answer-input::placeholder { color: var(--muted); }
 
+.all-answers {
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 4px;
+}
+.aa-title {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); text-align: center; margin-bottom: 2px;
+}
+.aa-item {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; font-size: 0.85rem;
+}
+.aa-item.me { border-color: var(--pc, #5b6ef5); background: rgba(255,255,255,0.08); }
+.aa-name { font-weight: 600; color: var(--pc-item, #fff); min-width: 70px; flex-shrink: 0; }
+.aa-text { flex: 1; color: #fff; text-align: right; word-break: break-word; }
+.aa-text.empty { color: var(--muted); font-style: italic; }
+
 /* Name modal */
 .modal-backdrop {
   position: fixed; inset: 0;
@@ -341,6 +361,8 @@ body {
         placeholder="Antwort eingeben …"
         oninput="submitAnswer(this.value)">
     </div>
+
+    <div class="all-answers" id="all-answers" style="display:none;"></div>
   </div>
 </div>
 
@@ -497,6 +519,26 @@ function renderGameScreen() {
   renderQuestion();
   renderBuzzerState();
   renderBuzzedList();
+  renderAllAnswers();
+}
+
+function renderAllAnswers() {
+  const el = document.getElementById('all-answers');
+  if (!el) return;
+  if (!session?.playerAnswersRevealed) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  const players = session.players || {};
+  el.style.display = 'flex';
+  el.innerHTML = '<div class="aa-title">👁 Antworten aller Spieler</div>' +
+    ['p1','p2','p3','p4'].filter(pid => players[pid]).map(pid => {
+      const p = players[pid];
+      const isMe = pid === mySlot;
+      const answer = (p.answer || '').trim();
+      return `<div class="aa-item ${isMe?'me':''}" style="--pc-item:${esc(p.color||'#fff')};">
+        <span class="aa-name">${esc(p.name||pid)}${isMe?' (Du)':''}</span>
+        <span class="aa-text${answer?'':' empty'}">${answer ? esc(answer) : 'keine Antwort'}</span>
+      </div>`;
+    }).join('');
 }
 
 let lastMediaAction = null;

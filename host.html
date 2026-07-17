@@ -311,6 +311,9 @@ header nav a:hover { color: var(--text); }
   <div class="stage">
 
     <!-- Players -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+      <button class="btn sm" id="reveal-answers-btn" onclick="togglePlayerAnswersReveal()">👁 Antworten für alle zeigen</button>
+    </div>
     <div class="players-row" id="players-row"></div>
 
     <!-- Question Stage -->
@@ -530,6 +533,18 @@ function renderAll() {
   renderBuzzOrder();
   renderAwardSelect();
   renderCurrentQuestion();
+  renderAnswerRevealBtn();
+}
+
+function renderAnswerRevealBtn() {
+  const btn = document.getElementById('reveal-answers-btn');
+  if (!btn) return;
+  const revealed = !!session?.playerAnswersRevealed;
+  btn.textContent = revealed ? '🙈 Antworten verbergen' : '👁 Antworten für alle zeigen';
+  btn.className = 'btn sm' + (revealed ? ' warn' : '');
+}
+async function togglePlayerAnswersReveal() {
+  await update('session', { playerAnswersRevealed: !session?.playerAnswersRevealed });
 }
 
 function renderPhaseBadge() {
@@ -772,6 +787,7 @@ function loadQuestion(id) {
     mediaRevealed: false, mediaAction: null, mediaTime: 0,
     revealMediaRevealed: false, revealMediaAction: null,
     answerRevealed: false,
+    playerAnswersRevealed: false,
     locked: false,
     buzzer: { order: [], firstId: null },
     lockedPlayers: []
