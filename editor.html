@@ -252,6 +252,43 @@ header nav a:hover { color: var(--text); }
   transition: color 0.15s;
 }
 .q-order-btn:hover { color: var(--text); }
+
+/* ── Mobile ── */
+@media (max-width: 800px) {
+  header { padding: 10px 12px; gap: 8px; flex-wrap: wrap; }
+  header h1 { font-size: 1.15rem; }
+  header nav a { margin-left: 0; }
+
+  .layout { display: block; height: auto; }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--border); overflow: visible; }
+  .sidebar-header { padding: 10px 12px; }
+  /* Kategorien als waagerecht wischbare Leiste */
+  .cat-list { display: flex; gap: 6px; overflow-x: auto; padding: 0 12px 10px; -webkit-overflow-scrolling: touch; }
+  .all-cat, .cat-item { flex: 0 0 auto; margin-bottom: 0; padding: 8px 12px; border: 1px solid var(--border); white-space: nowrap; }
+  .cat-name { font-size: 0.82rem; }
+  .cat-item.active .cat-actions { display: flex; }
+  .icon-btn { font-size: 1rem; padding: 4px 6px; }
+
+  .main-area { overflow: visible; }
+  .main-toolbar { padding: 10px 12px; }
+  .template-bar { padding: 10px 12px; }
+  .tpl-btn { min-width: 74px; padding: 8px 10px; }
+  .q-list { overflow: visible; padding: 12px; }
+  .q-card { padding: 12px; gap: 10px; flex-wrap: wrap; }
+  .q-body { flex-basis: calc(100% - 80px); }
+  .q-actions .icon-btn, .q-order-btn { font-size: 1.05rem; padding: 6px 8px; }
+  .q-media-thumb { max-width: 100%; max-height: 120px; }
+
+  /* Bearbeiten-Dialog als Vollbild, Speichern bleibt unten sichtbar */
+  .modal-backdrop { align-items: stretch; }
+  .modal { width: 100%; max-width: none !important; max-height: none; height: 100dvh; border-radius: 0; padding: 16px 14px 0; display: flex; flex-direction: column; }
+  .modal-body { flex: 1; overflow-y: auto; padding-bottom: 12px; }
+  .modal-footer { position: sticky; bottom: 0; background: var(--surface); margin-top: 0; padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .modal-footer .btn { flex: 1; padding: 12px; font-size: 0.95rem; }
+  .form-grid-2 { grid-template-columns: 1fr; }
+  .input, select.input, textarea.input { font-size: 16px; }
+  .toast { left: 12px; right: 12px; bottom: 16px; }
+}
 </style>
 </head>
 <body>
