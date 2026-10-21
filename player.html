@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="shared.js?v=20261021b"></script>
-<script src="fx.js?v=1"></script>
+<script src="fx.js?v=2"></script>
 <style>
 html { height: 100%; }
 body {
@@ -164,12 +164,12 @@ body {
 .q-crossfade .cf-item { flex: 0 1 auto; max-width: 48%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .q-crossfade .q-image-player { width: auto; max-width: 100%; }
 .q-crossfade .cf-answer { opacity: 0; }
-.q-crossfade.cf-animate .cf-answer { animation: cfIn 0.7s ease forwards; }
+.q-crossfade.cf-animate .cf-answer { animation: cfIn 1.4s ease forwards; }
 .q-crossfade.cf-settled .cf-answer { opacity: 1; }
 .cf-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 @keyframes cfIn  { from { opacity: 0; } to { opacity: 1; } }
 /* Fade-in only: reveal image with no question image to crossfade from */
-.cf-solo-answer.cf-animate { animation: cfIn 0.7s ease forwards; }
+.cf-solo-answer.cf-animate { animation: cfIn 1.4s ease forwards; }
 .cf-solo-answer.cf-settled { opacity: 1; }
 @media (max-width: 600px) {
   .q-image-player { max-height: 240px; }
@@ -579,8 +579,8 @@ function renderFinalStats() {
   if (finalStatsOpen) {
     const cards = [...el.querySelectorAll('.stats-card')];
     const elapsed = performance.now() - finalStatsOpenedAt;
-    const step = 350;
-    if (elapsed < cards.length * step + 600) {
+    const step = 600;
+    if (elapsed < cards.length * step + 900) {
       cards.forEach((c, i) => {
         c.classList.add('fx-rise');
         c.style.animationDelay = ((cards.length - 1 - i) * step - elapsed) + 'ms';
@@ -624,6 +624,7 @@ let lastCrossfadeKey = null;
 let lastQFingerprint = null;
 let lastFxQId = null;
 let lastFxReveal = false;
+let lastFxMedia = false;
 
 // ─── Audio Boost (Web Audio gain, mirrors host's slider) ──
 let audioCtx = null;
@@ -796,11 +797,18 @@ function renderQuestion() {
     if (q.id !== lastFxQId) {
       lastFxQId = q.id;
       lastFxReveal = showAnswer;
+      lastFxMedia = mediaRevealed;
       fxReplay(qDisp, 'fx-slide-in');
-    } else if (showAnswer && !lastFxReveal) {
-      fxReplay(qDisp.querySelector('.q-reveal-box'), 'fx-pop');
+    } else {
+      if (showAnswer && !lastFxReveal) fxReplay(qDisp.querySelector('.q-reveal-box'), 'fx-pop');
+      // Fragebild/-video wird aufgedeckt: langsam einblenden statt hart erscheinen
+      if (mediaRevealed && !lastFxMedia) {
+        const media = qDisp.querySelector('.q-image-player:not(.cf-answer):not(.cf-solo-answer), #player-video, iframe');
+        fxReplay(media, 'fx-img-in');
+      }
     }
     lastFxReveal = showAnswer;
+    lastFxMedia = mediaRevealed;
 
     // Wire audio-boost gain onto freshly rendered audio elements
     wireAudioBoost(document.getElementById('player-audio'));

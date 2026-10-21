@@ -17,18 +17,20 @@ const FX_REDUCED = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').mat
   @keyframes fxEdge    { 0% { box-shadow:inset 0 0 0 0 transparent; } 30% { box-shadow:inset 0 0 70px 14px var(--fxc); } 100% { box-shadow:inset 0 0 0 0 transparent; } }
   @keyframes fxFloat   { 0% { opacity:0; transform:translate(-50%,0) scale(.7); } 15% { opacity:1; transform:translate(-50%,-12px) scale(1.2); } 100% { opacity:0; transform:translate(-50%,-70px) scale(1); } }
   @keyframes fxRise    { from { opacity:0; transform:translateY(26px) scale(.97); } to { opacity:1; transform:none; } }
-  .fx-slide-in { animation: fxSlideIn .45s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes fxImgIn   { from { opacity:0; transform:scale(.96); filter:blur(8px); } to { opacity:1; transform:none; filter:none; } }
+  .fx-slide-in { animation: fxSlideIn .9s cubic-bezier(.2,.8,.2,1) both; }
   .fx-pulse    { animation: fxPulse .7s ease-out 2; }
   .fx-glow     { animation: fxGlow 1.1s ease-out; }
   .fx-shake    { animation: fxShake .5s ease; }
-  .fx-pop      { animation: fxPop .4s cubic-bezier(.2,.9,.3,1.3) both; }
-  .fx-rise     { animation: fxRise .5s cubic-bezier(.2,.8,.2,1) both; }
+  .fx-pop      { animation: fxPop .7s cubic-bezier(.2,.9,.3,1.3) both; }
+  .fx-rise     { animation: fxRise .8s cubic-bezier(.2,.8,.2,1) both; }
+  .fx-img-in   { animation: fxImgIn 1.4s ease-out both; }
   .fx-flash    { position:fixed; inset:0; pointer-events:none; z-index:9998; animation: fxFlash .8s ease-out forwards; }
   .fx-edge     { position:fixed; inset:0; pointer-events:none; z-index:9997; animation: fxEdge 1.1s ease-out forwards; }
   .fx-float    { position:fixed; z-index:9999; pointer-events:none; font-family:'Rajdhani',sans-serif; font-weight:700;
                  font-size:1.7rem; text-shadow:0 2px 10px rgba(0,0,0,.7); animation: fxFloat 1.3s ease-out forwards; }
   @media (prefers-reduced-motion: reduce) {
-    .fx-slide-in, .fx-rise, .fx-pop { animation-name: fxFade; }
+    .fx-slide-in, .fx-rise, .fx-pop, .fx-img-in { animation-name: fxFade; }
     .fx-shake, .fx-pulse, .fx-edge { animation: none; }
   }`;
   document.head.appendChild(st);
