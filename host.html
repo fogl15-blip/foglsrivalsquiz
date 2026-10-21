@@ -369,7 +369,7 @@ header nav a:hover { color: var(--text); }
     <div class="q-stage" id="q-stage">
       <div style="display:flex;align-items:center;justify-content:center;flex:1;flex-direction:column;gap:12px;color:var(--muted);">
         <div style="font-size:3rem;">🎯</div>
-        <p style="font-size:0.9rem;">Wähle rechts eine Frage aus und klicke „Frage starten".</p>
+        <p style="font-size:0.9rem;">Wähle in der Fragenliste eine Frage aus.</p>
       </div>
     </div>
 
@@ -926,7 +926,7 @@ function renderCurrentQuestion() {
   if (!currentQId || !questions[currentQId]) {
     stage.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;flex:1;flex-direction:column;gap:12px;color:var(--muted);">
       <div style="font-size:3rem;">🎯</div>
-      <p style="font-size:0.9rem;">Wähle rechts eine Frage aus.</p>
+      <p style="font-size:0.9rem;">Wähle in der Fragenliste eine Frage aus.</p>
     </div>`;
     return;
   }
