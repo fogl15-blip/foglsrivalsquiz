@@ -707,7 +707,7 @@ function renderQuestion() {
       mediaHtml = ytMatch
         ? `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="160"
             frameborder="0" allowfullscreen style="border-radius:8px;"></iframe>`
-        : `<video id="player-video" class="q-media-player" playsinline preload="auto" crossorigin="anonymous" src="${esc(q.videoUrl)}" style="width:100%;border-radius:8px;"></video>`;
+        : `<video id="player-video" class="q-media-player" playsinline preload="auto" crossorigin="anonymous" src="${esc(q.videoUrl)}" style="width:100%;max-width:520px;max-height:30vh;object-fit:contain;display:block;margin:0 auto;border-radius:8px;background:#000;"></video>`;
     } else {
       mediaHtml = `<div style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:20px;text-align:center;color:var(--muted);font-size:0.85rem;">
         🎬 Video wird gleich freigegeben …
