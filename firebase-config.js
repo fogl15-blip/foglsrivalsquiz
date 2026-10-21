@@ -19,5 +19,5 @@ const FIREBASE_CONFIG = {
 const SESSION_PASSWORD = "quiz2025";
 
 // Spieler-Farben (nicht ändern nötig)
-const PLAYER_COLORS = ["#f5a623", "#4fc3f7", "#66bb6a", "#ef5350"];
-const PLAYER_COLORS_CSS = ["#f5a623", "#4fc3f7", "#66bb6a", "#ef5350"];
+const PLAYER_COLORS = ["#f5a623", "#4fc3f7", "#66bb6a", "#ef5350", "#ab47bc", "#f06292"];
+const PLAYER_COLORS_CSS = PLAYER_COLORS;

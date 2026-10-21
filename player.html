@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>QuizBuzz – Spieler</title>
-<link rel="stylesheet" href="shared.css?v=20261021">
-<script src="firebase-config.js"></script>
+<link rel="stylesheet" href="shared.css?v=20261021b">
+<script src="firebase-config.js?v=20261021b"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="shared.js?v=20261021"></script>
+<script src="shared.js?v=20261021b"></script>
 <style>
 html { height: 100%; }
 body {
@@ -373,7 +373,7 @@ body {
 <script>
 initFirebase();
 
-const SLOT_ICONS = ['🦊','🐺','🦁','🐉'];
+const SLOT_ICONS = ['🦊','🐺','🦁','🐉','🦅','🐙'];
 let mySlot = null;
 let session = null;
 
@@ -430,11 +430,11 @@ function renderSelectScreen() {
     return;
   }
   const players = session.players || {};
-  grid.innerHTML = ['p1','p2','p3','p4'].map((pid, i) => {
+  grid.innerHTML = ALL_PIDS.map((pid, i) => {
     const p = players[pid];
     const taken = p?.connected && p?.connectedBy && p.connectedBy !== getDeviceId();
     return `
-    <div class="slot-card ${taken?'taken':''}" style="--pc:${esc(p?.color||PLAYER_COLORS[i])};"
+    <div class="slot-card ${taken?'taken':''}" style="--pc:${esc(p?.color||pidColor(pid))};"
          onclick="${taken?'':'selectSlot(\''+pid+'\')'}">
       ${taken ? '<div class="slot-taken-badge">Belegt</div>' : ''}
       <div class="slot-icon">${SLOT_ICONS[i]}</div>
@@ -472,12 +472,13 @@ async function confirmName() {
   const pid = pendingSlot;
   if (!pid) return;
   const nameVal = document.getElementById('name-input').value.trim();
-  const name = nameVal || (session?.players?.[pid]?.name || 'Spieler ' + pid[1]);
+  const name = nameVal || (session?.players?.[pid]?.name || 'Spieler ' + pid.slice(1));
   document.getElementById('name-modal').classList.remove('open');
 
   mySlot = pid;
   const p = session?.players?.[pid];
-  await update(`session/players/${pid}`, { connected: true, connectedBy: getDeviceId(), name });
+  // p5/p6 may not exist yet in older sessions → also write id and color
+  await update(`session/players/${pid}`, { id: pid, connected: true, connectedBy: getDeviceId(), name, joined: true, color: p?.color || pidColor(pid) });
 
   // Set up presence
   const presRef = firebase.database().ref(`session/players/${pid}/connected`);
@@ -492,8 +493,8 @@ async function confirmName() {
   document.getElementById('game-screen').classList.remove('hidden');
 
   const gameHeader = document.getElementById('game-header');
-  gameHeader.style.setProperty('--pc', p?.color || PLAYER_COLORS[parseInt(pid[1])-1]);
-  document.getElementById('game-screen').style.setProperty('--pc', p?.color || PLAYER_COLORS[parseInt(pid[1])-1]);
+  gameHeader.style.setProperty('--pc', p?.color || pidColor(pid));
+  document.getElementById('game-screen').style.setProperty('--pc', p?.color || pidColor(pid));
   document.getElementById('gh-name').textContent = name;
 
   // Restore answer if any
@@ -503,7 +504,7 @@ async function confirmName() {
 
 async function leaveSlot() {
   if (mySlot) {
-    await update(`session/players/${mySlot}`, { connected: false, connectedBy: null, answer: '' });
+    await update(`session/players/${mySlot}`, { connected: false, connectedBy: null, answer: '', joined: false });
   }
   mySlot = null;
   document.getElementById('game-screen').classList.add('hidden');
@@ -548,7 +549,7 @@ function renderAllAnswers() {
   const players = session.players || {};
   el.style.display = 'flex';
   el.innerHTML = '<div class="aa-title">👁 Antworten aller Spieler</div>' +
-    ['p1','p2','p3','p4'].filter(pid => players[pid]).map(pid => {
+    activePids(session).map(pid => {
       const p = players[pid];
       const isMe = pid === mySlot;
       const answer = (p.answer || '').trim();

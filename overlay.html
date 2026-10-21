@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizBuzz – OBS Overlay</title>
-<script src="firebase-config.js"></script>
+<script src="firebase-config.js?v=20261021b"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="shared.js?v=20261021"></script>
+<script src="shared.js?v=20261021b"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
@@ -104,6 +104,9 @@
   .player-chip.buzzed { border-color: var(--pc); box-shadow: 0 0 18px -4px var(--pc), 0 2px 16px rgba(0,0,0,0.4); }
   .player-chip.first  { border-color: #ffd700; box-shadow: 0 0 28px -4px #ffd700, 0 2px 16px rgba(0,0,0,0.5); transform: scale(1.02); }
   .player-chip.offline { opacity: 0.35; }
+  .scoreboard.many { gap: 6px; }
+  .scoreboard.many .player-chip { padding: 8px 10px; }
+  .scoreboard.many .pc-name { font-size: 0.9rem; }
 
   .pc-name {
     font-family: 'Rajdhani', sans-serif;
@@ -208,7 +211,8 @@ function renderScoreboard(s) {
   const order = s.buzzer?.order || [];
   const firstId = order[0] || null;
 
-  const pids = ['p1','p2','p3','p4'];
+  const pids = activePids(s);
+  sb.classList.toggle('many', pids.length > 4);
 
   sb.innerHTML = pids.map(pid => {
     const p = players[pid];
@@ -219,7 +223,7 @@ function renderScoreboard(s) {
     prevScores[pid] = p.score;
 
     return `<div class="player-chip ${isFirst?'first':isBuzzed?'buzzed':''} ${p.connected?'':'offline'}"
-                 style="--pc:${esc(p.color||COLORS[parseInt(pid[1])-1])};">
+                 style="--pc:${esc(p.color||pidColor(pid))};">
       <div class="pc-name">${esc(p.name||pid)}</div>
       <div class="pc-answer">${esc(p.answer||'')}</div>
       <div class="pc-score"><span class="${scoreChanged?'score-flash':''}">${p.score||0}</span></div>

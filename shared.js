@@ -52,13 +52,28 @@ function defaultSession() {
     locked:   false,
     question: null,
     buzzer:   { order: [], firstId: null },
-    players: {
-      p1: { id:'p1', name:'Spieler 1', score:0, answer:'', connected:false, color:'#f5a623' },
-      p2: { id:'p2', name:'Spieler 2', score:0, answer:'', connected:false, color:'#4fc3f7' },
-      p3: { id:'p3', name:'Spieler 3', score:0, answer:'', connected:false, color:'#66bb6a' },
-      p4: { id:'p4', name:'Spieler 4', score:0, answer:'', connected:false, color:'#ef5350' },
-    }
+    players: Object.fromEntries(ALL_PIDS.map((pid, i) => [pid,
+      { id: pid, name: 'Spieler ' + (i + 1), score: 0, answer: '', connected: false, color: PLAYER_COLORS[i] }]))
   };
+}
+
+// ── Spieler-Slots (max. 6) ───────────────────────
+const ALL_PIDS = ['p1','p2','p3','p4','p5','p6'];
+
+function pidColor(pid) { return PLAYER_COLORS[parseInt(pid.slice(1)) - 1] || '#fff'; }
+
+// Slots that take part this round: online, joined once, or already holding points
+function activePids(s) {
+  const ps = s?.players || {};
+  return ALL_PIDS.filter(pid => {
+    const p = ps[pid];
+    return p && (p.connected || p.joined || (p.score || 0) !== 0);
+  });
+}
+
+// Slots that exist in the session (avoid creating half-empty player nodes)
+function existingPids(s) {
+  return ALL_PIDS.filter(pid => s?.players?.[pid]);
 }
 
 // ── Toast util ───────────────────────────────────
@@ -93,8 +108,8 @@ function incStat(pid, key) {
 function buildStatsHtml(session) {
   const players = session?.players || {};
   const stats = session?.stats || {};
-  const rows = ['p1','p2','p3','p4']
-    .filter(pid => players[pid] && (players[pid].connected || players[pid].score > 0 || stats[pid]))
+  const rows = ALL_PIDS
+    .filter(pid => players[pid] && (activePids(session).includes(pid) || stats[pid]))
     .map(pid => {
       const p = players[pid], s = stats[pid] || {};
       const correct = s.correct || 0, wrong = s.wrong || 0;

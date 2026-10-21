@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizBuzz – Host</title>
-<link rel="stylesheet" href="shared.css?v=20261021">
-<script src="firebase-config.js"></script>
+<link rel="stylesheet" href="shared.css?v=20261021b">
+<script src="firebase-config.js?v=20261021b"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="shared.js?v=20261021"></script>
+<script src="shared.js?v=20261021b"></script>
 <style>
 /* ── Layout ── */
 header {
@@ -521,7 +521,7 @@ on(PATHS.questions,     d => { questions = d || {}; renderQPanel(); });
 on(PATHS.categories,    d => { cats = d || {}; renderCatFilter(); renderQPanel(); });
 
 // Live answer updates – direct listener per player, updates only the answer div
-['p1','p2','p3','p4'].forEach(pid => {
+ALL_PIDS.forEach(pid => {
   db.ref(`session/players/${pid}/answer`).on('value', snap => {
     const val = snap.val() || '';
     const el = document.getElementById(`answer-live-${pid}`);
@@ -597,8 +597,17 @@ function renderPlayers() {
   const buzzerOrder = session?.buzzer?.order || [];
   const firstId = buzzerOrder[0] || null;
 
-  row.innerHTML = ['p1','p2','p3','p4'].map(pid => {
-    const p = players[pid] || { id: pid, name: 'Spieler', score: 0, color: PLAYER_COLORS[parseInt(pid[1])-1] };
+  const pids = activePids(session);
+  // 1–4 Spieler: eine Reihe; 5–6: zwei Reihen à 3
+  row.style.gridTemplateColumns = `repeat(${pids.length > 4 ? 3 : Math.max(pids.length, 1)}, 1fr)`;
+  if (!pids.length) {
+    row.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:8px;">Noch keine Spieler beigetreten – Link: player.html</div>';
+    renderAwardSelect();
+    return;
+  }
+
+  row.innerHTML = pids.map(pid => {
+    const p = { color: pidColor(pid), name: 'Spieler', score: 0, ...players[pid] };
     const buzzRank = buzzerOrder.indexOf(pid);
     const isBuzzed = buzzRank >= 0;
     const isFirst = pid === firstId;
@@ -678,7 +687,7 @@ async function resetBuzzers() {
   await update('session', { locked: false, buzzer: { order: [], firstId: null }, lockedPlayers: [], answerRevealed: false });
   // clear player answers
   const upd = {};
-  ['p1','p2','p3','p4'].forEach(pid => { upd[`session/players/${pid}/answer`] = ''; });
+  existingPids(session).forEach(pid => { upd[`session/players/${pid}/answer`] = ''; });
   await firebase.database().ref().update(upd);
 }
 
@@ -690,7 +699,7 @@ function renderAwardSelect() {
   const autoVal = firstId || sel.value;
   const players = session?.players || {};
   sel.innerHTML = '<option value="">– Spieler –</option>' +
-    ['p1','p2','p3','p4'].map(pid => {
+    activePids(session).map(pid => {
       const p = players[pid];
       return `<option value="${pid}" ${autoVal===pid?'selected':''}>${esc(p?.name||pid)}</option>`;
     }).join('');
@@ -727,9 +736,9 @@ async function awardPoints() {
 async function awardAllExceptFirst() {
   const firstId = session?.buzzer?.order?.[0];
   const players = session?.players || {};
-  const allPids = ['p1','p2','p3','p4'];
+  const allPids = existingPids(session);
 
-  const recipients = allPids.filter(pid => pid !== firstId && players[pid]);
+  const recipients = activePids(session).filter(pid => pid !== firstId);
   if (!recipients.length) { showToast('Niemand zum Vergeben!', 'err'); return; }
 
   const upd = {};
@@ -824,7 +833,7 @@ function loadQuestion(id) {
   });
   // Clear player answers
   const upd = {};
-  ['p1','p2','p3','p4'].forEach(pid => { upd[`session/players/${pid}/answer`] = ''; });
+  existingPids(session).forEach(pid => { upd[`session/players/${pid}/answer`] = ''; });
   firebase.database().ref().update(upd);
   renderQPanel();
   renderCurrentQuestion();
