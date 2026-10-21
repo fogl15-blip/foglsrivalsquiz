@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="shared.js?v=20261021b"></script>
+<script src="fx.js?v=1"></script>
 <style>
 /* ── Layout ── */
 header {
@@ -460,6 +461,7 @@ let doneQIds = new Set();
 let answersRevealed = false;
 let lastHostCrossfadeKey = null;
 let lastQFingerprint = null;
+let lastFxQId = null;
 
 // ─── Audio Boost (Web Audio gain, since native volume caps at 100%) ──
 let audioCtx = null;
@@ -516,7 +518,19 @@ function syncAudioBoostUi(db) {
 }
 
 // ─── Firebase Listeners ─────────────────────────────────
-on('session',           d => { session = d; syncAudioBoostUi(d?.audioBoostDb); renderAll(); });
+on('session',           d => {
+  session = d;
+  const ev = fxEvents(d);
+  if (ev.firstBuzz) fxMark('tile-' + ev.firstBuzz, 'fx-pulse', 1400);
+  if (ev.award?.type === 'correct') fxMark('tile-' + ev.award.pid, 'fx-glow', 1100);
+  if (ev.award?.type === 'wrong' && ev.award.pid) fxMark('tile-' + ev.award.pid, 'fx-shake', 500);
+  syncAudioBoostUi(d?.audioBoostDb);
+  renderAll();
+  if (ev.award?.type === 'correct') {
+    const tile = document.querySelector(`.player-tile[data-pid="${ev.award.pid}"]`);
+    fxConfettiFrom(tile, d?.players?.[ev.award.pid]?.color, 70, 0.8);
+  }
+});
 on(PATHS.questions,     d => { questions = d || {}; renderQPanel(); });
 on(PATHS.categories,    d => { cats = d || {}; renderCatFilter(); renderQPanel(); });
 
@@ -611,9 +625,11 @@ function renderPlayers() {
     const buzzRank = buzzerOrder.indexOf(pid);
     const isBuzzed = buzzRank >= 0;
     const isFirst = pid === firstId;
+    const fx = fxAttrs('tile-' + pid);
+    const fxc = fx.cls.includes('glow') ? '#22c55e' : p.color;
     return `
-    <div class="player-tile ${isFirst?'first':isBuzzed?'buzzed':''} ${p.connected?'':'offline'}"
-         style="--pc:${esc(p.color)};">
+    <div class="player-tile ${isFirst?'first':isBuzzed?'buzzed':''} ${p.connected?'':'offline'}${fx.cls}" data-pid="${pid}"
+         style="--pc:${esc(p.color)};--fxc:${esc(fxc)};${fx.style}">
       <div class="pt-top">
         <div class="pt-dot"></div>
         <input class="pt-name-input" value="${esc(p.name)}" maxlength="16"
@@ -623,7 +639,7 @@ function renderPlayers() {
       <div class="pt-score-row">
         <button class="score-adj" onclick="adjScore('${pid}',-1)">−</button>
         <div>
-          <div class="pt-score">${p.score || 0}</div>
+          <div class="pt-score" data-fx-score="${pid}">${fxScoreText(pid, p.score, p.color)}</div>
           <div class="pt-score-label">Punkte</div>
         </div>
         <button class="score-adj" onclick="adjScore('${pid}',1)">+</button>
@@ -724,7 +740,10 @@ async function awardPoints() {
   const pid = document.getElementById('award-player-sel').value;
   if (!pid) { showToast('Spieler auswählen!', 'err'); return; }
   const cur = session?.players?.[pid]?.score || 0;
-  await update(`session/players/${pid}`, { score: cur + selectedPtsCorrect });
+  await firebase.database().ref().update({
+    [`session/players/${pid}/score`]: cur + selectedPtsCorrect,
+    'session/lastAward': { type: 'correct', pid, pts: selectedPtsCorrect, ts: Date.now() }
+  });
   incStat(pid, 'correct');
   triggerSound('Richtig');
   showToast(`✅ +${selectedPtsCorrect} Pkt. → ${session?.players?.[pid]?.name || pid}`, 'ok');
@@ -765,6 +784,7 @@ async function awardAllExceptFirst() {
     showToast(`❌ +${selectedPtsWrong} Pkt. → ${names.join(', ')}`, 'ok');
   }
 
+  upd['session/lastAward'] = { type: 'wrong', pid: firstId || null, pts: selectedPtsWrong, ts: Date.now() };
   await firebase.database().ref().update(upd);
 
   // Reset buzzers but keep lockedPlayers
@@ -1008,6 +1028,11 @@ function renderCurrentQuestion() {
       <button class="btn ghost sm" onclick="prevQ()">← Zurück</button>
       <button class="btn sm" onclick="markDone(); nextQ()">Nächste →</button>
     </div>`;
+
+  if (currentQId !== lastFxQId) {
+    lastFxQId = currentQId;
+    fxReplay(stage.querySelector('.q-stage-card'), 'fx-slide-in');
+  }
 
   // Start timer
   if (q.timeLimit) startTimer(q.timeLimit);

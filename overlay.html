@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="shared.js?v=20261021b"></script>
+<script src="fx.js?v=1"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
@@ -170,9 +171,19 @@ let prevScores = {};
 
 on('session', session => {
   if (!session) return;
+  const ev = fxEvents(session);
+  if (ev.firstBuzz) fxMark('chip-' + ev.firstBuzz, 'fx-pulse', 1400);
+  if (ev.award?.type === 'correct') fxMark('chip-' + ev.award.pid, 'fx-glow', 1100);
+  if (ev.award?.type === 'wrong' && ev.award.pid) fxMark('chip-' + ev.award.pid, 'fx-shake', 500);
   renderBuzzNotif(session);
   renderQuestionCard(session);
   renderScoreboard(session);
+  if (ev.firstBuzz) fxReplay(document.getElementById('buzz-notif'), 'fx-pop');
+  if (ev.newQuestion) fxReplay(document.getElementById('q-card'), 'fx-slide-in');
+  if (ev.award?.type === 'correct') {
+    const chip = document.querySelector(`.player-chip[data-pid="${ev.award.pid}"]`);
+    fxConfettiFrom(chip, session.players?.[ev.award.pid]?.color, 80, 0.9);
+  }
 });
 
 function renderBuzzNotif(s) {
@@ -222,11 +233,14 @@ function renderScoreboard(s) {
     const scoreChanged = prevScores[pid] !== undefined && prevScores[pid] !== p.score;
     prevScores[pid] = p.score;
 
-    return `<div class="player-chip ${isFirst?'first':isBuzzed?'buzzed':''} ${p.connected?'':'offline'}"
-                 style="--pc:${esc(p.color||pidColor(pid))};">
+    const color = p.color || pidColor(pid);
+    const fx = fxAttrs('chip-' + pid);
+    const fxc = fx.cls.includes('glow') ? '#22c55e' : color;
+    return `<div class="player-chip ${isFirst?'first':isBuzzed?'buzzed':''} ${p.connected?'':'offline'}${fx.cls}" data-pid="${pid}"
+                 style="--pc:${esc(color)};--fxc:${esc(fxc)};${fx.style}">
       <div class="pc-name">${esc(p.name||pid)}</div>
       <div class="pc-answer">${esc(p.answer||'')}</div>
-      <div class="pc-score"><span class="${scoreChanged?'score-flash':''}">${p.score||0}</span></div>
+      <div class="pc-score"><span class="${scoreChanged?'score-flash':''}" data-fx-score="${pid}">${fxScoreText(pid, p.score, color)}</span></div>
       <div class="pc-pts-label">Punkte</div>
     </div>`;
   }).join('');

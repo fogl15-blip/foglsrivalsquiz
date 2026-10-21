@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="shared.js?v=20261021b"></script>
+<script src="fx.js?v=1"></script>
 <style>
 html { height: 100%; }
 body {
@@ -416,9 +417,33 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─── Firebase ───────────────────────────────────────────
 on('session', data => {
   session = data;
+  const ev = fxEvents(data);
   if (!mySlot) renderSelectScreen();
   else         renderGameScreen();
+  if (mySlot) playerFx(ev);
 });
+
+function playerFx(ev) {
+  const myColor = session?.players?.[mySlot]?.color || pidColor(mySlot);
+  if (ev.firstBuzz === mySlot) {
+    fxEdge(myColor);
+    fxReplay(document.getElementById('buzz-btn'), 'fx-pulse');
+  }
+  const a = ev.award;
+  if (!a) return;
+  if (a.type === 'correct') {
+    const winnerColor = session?.players?.[a.pid]?.color || pidColor(a.pid);
+    if (a.pid === mySlot) {
+      fxFlash('rgba(34,197,94,0.55)');
+      fxConfetti({ color: myColor, count: 150, power: 1.2 });
+    } else {
+      fxConfetti({ color: winnerColor, count: 45, power: 0.8 });
+    }
+  } else if (a.type === 'wrong' && a.pid === mySlot) {
+    fxFlash('rgba(239,68,68,0.55)');
+    if (!FX_REDUCED) fxReplay(document.getElementById('game-screen'), 'fx-shake');
+  }
+}
 
 // ─── Select Screen ──────────────────────────────────────
 function renderSelectScreen() {
@@ -519,7 +544,10 @@ function renderGameScreen() {
   if (!p) return;
 
   // Update score + name
-  document.getElementById('gh-score').textContent = (p.score || 0) + ' Pkt.';
+  const scoreEl = document.getElementById('gh-score');
+  scoreEl.dataset.fxScore = 'me-' + mySlot;
+  scoreEl.dataset.fxSuffix = ' Pkt.';
+  scoreEl.textContent = fxScoreText('me-' + mySlot, p.score, p.color) + ' Pkt.';
   document.getElementById('gh-name').textContent = p.name || 'Spieler';
 
   renderQuestion();
@@ -530,15 +558,45 @@ function renderGameScreen() {
 }
 
 let finalStatsOpen = false;
-function toggleFinalStatsOpen() { finalStatsOpen = !finalStatsOpen; renderFinalStats(); }
+let finalStatsOpenedAt = 0;
+let finalStatsShown = false;
+function toggleFinalStatsOpen() {
+  finalStatsOpen = !finalStatsOpen;
+  if (finalStatsOpen) finalStatsOpenedAt = performance.now();
+  renderFinalStats();
+}
 function renderFinalStats() {
   const el = document.getElementById('final-stats');
   if (!el) return;
-  if (!session?.finalStatsRevealed) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (!session?.finalStatsRevealed) { el.style.display = 'none'; el.innerHTML = ''; finalStatsShown = false; return; }
   el.style.display = 'flex';
   el.innerHTML = `<button class="stats-toggle" onclick="toggleFinalStatsOpen()">
       <span>🏁 Endstand &amp; Rundenstatistik</span><span>${finalStatsOpen ? '▲' : '▼'}</span>
     </button>` + (finalStatsOpen ? buildStatsHtml(session) : '');
+  if (!finalStatsShown) { finalStatsShown = true; fxReplay(el.querySelector('.stats-toggle'), 'fx-pop'); }
+
+  // Ranks appear one after another, last place first, winner last
+  if (finalStatsOpen) {
+    const cards = [...el.querySelectorAll('.stats-card')];
+    const elapsed = performance.now() - finalStatsOpenedAt;
+    const step = 350;
+    if (elapsed < cards.length * step + 600) {
+      cards.forEach((c, i) => {
+        c.classList.add('fx-rise');
+        c.style.animationDelay = ((cards.length - 1 - i) * step - elapsed) + 'ms';
+      });
+      const winner = cards[0];
+      const winnerAt = (cards.length - 1) * step - elapsed + 300;
+      if (winner && winnerAt > 0 && !renderFinalStats.confettiQueued) {
+        renderFinalStats.confettiQueued = true;
+        setTimeout(() => {
+          renderFinalStats.confettiQueued = false;
+          const c = document.querySelector('#final-stats .stats-card');
+          if (c) fxConfettiFrom(c, getComputedStyle(c).getPropertyValue('--pc').trim() || '#ffd700', 120, 1);
+        }, winnerAt);
+      }
+    }
+  }
 }
 
 function renderAllAnswers() {
@@ -564,6 +622,8 @@ let lastMediaAction = null;
 let lastMediaSyncTs = 0;
 let lastCrossfadeKey = null;
 let lastQFingerprint = null;
+let lastFxQId = null;
+let lastFxReveal = false;
 
 // ─── Audio Boost (Web Audio gain, mirrors host's slider) ──
 let audioCtx = null;
@@ -732,6 +792,15 @@ function renderQuestion() {
       <div class="q-text-player">${esc(q.question || '')}</div>
       ${combinedMedia}
       ${revealHtml}`;
+
+    if (q.id !== lastFxQId) {
+      lastFxQId = q.id;
+      lastFxReveal = showAnswer;
+      fxReplay(qDisp, 'fx-slide-in');
+    } else if (showAnswer && !lastFxReveal) {
+      fxReplay(qDisp.querySelector('.q-reveal-box'), 'fx-pop');
+    }
+    lastFxReveal = showAnswer;
 
     // Wire audio-boost gain onto freshly rendered audio elements
     wireAudioBoost(document.getElementById('player-audio'));
