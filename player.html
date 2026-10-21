@@ -344,6 +344,8 @@ body {
     <button class="leave-btn" onclick="leaveSlot()" style="flex-shrink:0;">✕</button>
   </div>
 
+  <div id="final-stats" style="display:none;width:100%;max-width:360px;align-self:center;flex-direction:column;gap:8px;"></div>
+
   <div class="q-display" id="q-display" style="display:none;"></div>
 
   <div class="buzz-area">
@@ -396,7 +398,10 @@ function toggleMute() {
   }
 }
 
+let soundInitDone = false;
 on('session/soundTrigger', trigger => {
+  // first callback is the stored last trigger, not a new one - don't replay it on join
+  if (!soundInitDone) { soundInitDone = true; lastSoundTs = trigger?.ts || 0; return; }
   if (!trigger || trigger.ts === lastSoundTs) return;
   lastSoundTs = trigger.ts;
   playSound(trigger.name);
@@ -520,6 +525,19 @@ function renderGameScreen() {
   renderBuzzerState();
   renderBuzzedList();
   renderAllAnswers();
+  renderFinalStats();
+}
+
+let finalStatsOpen = false;
+function toggleFinalStatsOpen() { finalStatsOpen = !finalStatsOpen; renderFinalStats(); }
+function renderFinalStats() {
+  const el = document.getElementById('final-stats');
+  if (!el) return;
+  if (!session?.finalStatsRevealed) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'flex';
+  el.innerHTML = `<button class="stats-toggle" onclick="toggleFinalStatsOpen()">
+      <span>🏁 Endstand &amp; Rundenstatistik</span><span>${finalStatsOpen ? '▲' : '▼'}</span>
+    </button>` + (finalStatsOpen ? buildStatsHtml(session) : '');
 }
 
 function renderAllAnswers() {
@@ -627,7 +645,7 @@ function renderQuestion() {
       mediaHtml = ytMatch
         ? `<iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%" height="160"
             frameborder="0" allowfullscreen style="border-radius:8px;"></iframe>`
-        : `<video class="q-media-player" src="${esc(q.videoUrl)}" style="width:100%;border-radius:8px;"></video>`;
+        : `<video id="player-video" class="q-media-player" playsinline preload="auto" crossorigin="anonymous" src="${esc(q.videoUrl)}" style="width:100%;border-radius:8px;"></video>`;
     } else {
       mediaHtml = `<div style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:20px;text-align:center;color:var(--muted);font-size:0.85rem;">
         🎬 Video wird gleich freigegeben …
@@ -716,6 +734,7 @@ function renderQuestion() {
 
     // Wire audio-boost gain onto freshly rendered audio elements
     wireAudioBoost(document.getElementById('player-audio'));
+    wireAudioBoost(document.getElementById('player-video'));
     wireAudioBoost(document.getElementById('reveal-audio-player'));
   }
   applyAudioBoostDb(session?.audioBoostDb || 0);
@@ -736,10 +755,10 @@ function renderQuestion() {
   // Sync audio - use setTimeout to let DOM update first
   const syncTs = session?.mediaSyncTs || 0;
   const action  = session?.mediaAction || null;
-  if (q.type === 'audio' && action && syncTs !== lastMediaSyncTs) {
+  if ((q.type === 'audio' || q.type === 'video') && action && syncTs !== lastMediaSyncTs) {
     lastMediaSyncTs = syncTs;
     setTimeout(() => {
-      const audio = document.getElementById('player-audio');
+      const audio = document.getElementById('player-audio') || document.getElementById('player-video');
       if (!audio) return;
       if (action === 'play') {
         audio.currentTime = session?.mediaTime || 0;
@@ -835,6 +854,8 @@ async function doBuzz(e) {
     'buzzer/firstId': newOrder[0],
     locked: true,
   });
+  incStat(mySlot, 'buzzes');
+  if (order.length === 0) incStat(mySlot, 'first');
 }
 
 // ─── Answer ──────────────────────────────────────────────

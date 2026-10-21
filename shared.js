@@ -83,3 +83,43 @@ function fmtTime(ms) {
   const s = (ms / 1000).toFixed(2);
   return s + 's';
 }
+
+// ── Rundenstatistik (session/stats/<pid>: buzzes, first, correct, wrong) ──
+function incStat(pid, key) {
+  if (!pid) return;
+  return db.ref(`session/stats/${pid}/${key}`).transaction(v => (v || 0) + 1);
+}
+
+function buildStatsHtml(session) {
+  const players = session?.players || {};
+  const stats = session?.stats || {};
+  const rows = ['p1','p2','p3','p4']
+    .filter(pid => players[pid] && (players[pid].connected || players[pid].score > 0 || stats[pid]))
+    .map(pid => {
+      const p = players[pid], s = stats[pid] || {};
+      const correct = s.correct || 0, wrong = s.wrong || 0;
+      return {
+        name: p.name || pid, color: p.color || '#fff', score: p.score || 0,
+        buzzes: s.buzzes || 0, first: s.first || 0, correct, wrong,
+        quote: correct + wrong ? Math.round(correct / (correct + wrong) * 100) + ' %' : '–'
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+  if (!rows.length) return '<div class="stats-empty">Noch keine Daten.</div>';
+  const medals = ['🥇', '🥈', '🥉'];
+  return '<div class="stats-list">' + rows.map((r, i) => `
+    <div class="stats-card" style="--pc:${esc(r.color)};">
+      <div class="stats-head">
+        <span class="stats-rank">${medals[i] || '#' + (i + 1)}</span>
+        <span class="stats-name">${esc(r.name)}</span>
+        <span class="stats-score">${r.score} Pkt.</span>
+      </div>
+      <div class="stats-chips">
+        <span>🔔 Buzzer: <b>${r.buzzes}</b></span>
+        <span>⚡ Erster: <b>${r.first}</b></span>
+        <span>✅ Richtig: <b>${r.correct}</b></span>
+        <span>❌ Falsch: <b>${r.wrong}</b></span>
+        <span>🎯 Quote: <b>${r.quote}</b></span>
+      </div>
+    </div>`).join('') + '</div>';
+}

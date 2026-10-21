@@ -399,6 +399,13 @@ header nav a:hover { color: var(--text); }
       <div class="q-panel-list" id="q-panel-list"></div>
     </div>
 
+    <!-- Round stats -->
+    <div class="panel-section">
+      <h3>Rundenstatistik</h3>
+      <button class="btn sm w-full" id="final-stats-btn" onclick="toggleFinalStats()">🏁 Endstand für alle zeigen</button>
+      <div id="host-stats"></div>
+    </div>
+
     <!-- Session -->
     <div class="panel-section">
       <h3>Session</h3>
@@ -430,7 +437,10 @@ function playSound(name) {
 
 // Listen for sound triggers on this page too
 let lastSoundTs = 0;
+let soundInitDone = false;
 on('session/soundTrigger', trigger => {
+  // first callback is the stored last trigger, not a new one - don't replay it on load
+  if (!soundInitDone) { soundInitDone = true; lastSoundTs = trigger?.ts || 0; return; }
   if (!trigger || trigger.ts === lastSoundTs) return;
   lastSoundTs = trigger.ts;
   playSound(trigger.name);
@@ -534,6 +544,21 @@ function renderAll() {
   renderAwardSelect();
   renderCurrentQuestion();
   renderAnswerRevealBtn();
+  renderHostStats();
+}
+
+function renderHostStats() {
+  const el = document.getElementById('host-stats');
+  if (el) el.innerHTML = buildStatsHtml(session);
+  const btn = document.getElementById('final-stats-btn');
+  if (btn) {
+    const on = !!session?.finalStatsRevealed;
+    btn.textContent = on ? '🙈 Endstand verbergen' : '🏁 Endstand für alle zeigen';
+    btn.className = 'btn sm w-full' + (on ? ' warn' : '');
+  }
+}
+async function toggleFinalStats() {
+  await update('session', { finalStatsRevealed: !session?.finalStatsRevealed });
 }
 
 function renderAnswerRevealBtn() {
@@ -691,6 +716,7 @@ async function awardPoints() {
   if (!pid) { showToast('Spieler auswählen!', 'err'); return; }
   const cur = session?.players?.[pid]?.score || 0;
   await update(`session/players/${pid}`, { score: cur + selectedPtsCorrect });
+  incStat(pid, 'correct');
   triggerSound('Richtig');
   showToast(`✅ +${selectedPtsCorrect} Pkt. → ${session?.players?.[pid]?.name || pid}`, 'ok');
   await resetBuzzers(); // clears lockedPlayers too
@@ -714,6 +740,10 @@ async function awardAllExceptFirst() {
     names.push(players[pid]?.name || pid);
   });
 
+  // Falsch-Sound immer abspielen (früher nur bei aktiver Buzzer-Sperre)
+  triggerSound('Falsch');
+  incStat(firstId, 'wrong');
+
   // Lock the wrong player's buzzer for this round if enabled
   if (wrongLockEnabled && firstId) {
     const lockedList = session?.lockedPlayers || [];
@@ -721,7 +751,6 @@ async function awardAllExceptFirst() {
       upd[`session/lockedPlayers`] = [...lockedList, firstId];
     }
     const wrongName = players[firstId]?.name || firstId;
-    triggerSound('Falsch');
     showToast(`❌ ${wrongName} gesperrt · +${selectedPtsWrong} Pkt. für andere`, 'ok');
   } else {
     showToast(`❌ +${selectedPtsWrong} Pkt. → ${names.join(', ')}`, 'ok');
@@ -788,6 +817,7 @@ function loadQuestion(id) {
     revealMediaRevealed: false, revealMediaAction: null,
     answerRevealed: false,
     playerAnswersRevealed: false,
+    finalStatsRevealed: false,
     locked: false,
     buzzer: { order: [], firstId: null },
     lockedPlayers: []
@@ -819,7 +849,9 @@ function renderCurrentQuestion() {
   const mediaPlaying  = session?.mediaPlaying  || false;
   const revealMediaRevealed = session?.revealMediaRevealed || false;
 
-  const qFingerprint = [currentQId, mediaRevealed, revealMediaRevealed, answersRevealed].join('|');
+  const directVideo = q.type === 'video' && q.videoUrl && !/(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(q.videoUrl);
+  // mediaRevealed flips on first play of a local video; rebuilding then would kill the playing <video>
+  const qFingerprint = [currentQId, directVideo ? 'v' : mediaRevealed, revealMediaRevealed, answersRevealed].join('|');
   if (qFingerprint === lastQFingerprint) {
     applyAudioBoostDb(session?.audioBoostDb || 0);
     return;
@@ -883,7 +915,12 @@ function renderCurrentQuestion() {
         <iframe src="https://www.youtube.com/embed/${ytMatch[1]}" width="100%"
           height="280" frameborder="0" allowfullscreen style="border-radius:10px;"></iframe>`;
     } else {
-      mediaHtml = `<video src="${esc(q.videoUrl)}" controls style="width:100%;max-height:280px;border-radius:10px;" onplay="syncMedia('play')" onpause="syncMedia('pause')"></video>`;
+      mediaHtml = `<video id="host-video" controls playsinline crossorigin="anonymous" src="${esc(q.videoUrl)}" style="width:100%;max-height:280px;border-radius:10px;" onplay="syncMedia('play')" onpause="syncMedia('pause')" onseeked="syncMedia('seek')"></video>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+          <button class="btn success sm" onclick="hostPlayAudio()">▶ Abspielen für alle</button>
+          <button class="btn warn sm" onclick="hostPauseAudio()">⏸ Pause</button>
+          <span style="font-size:0.75rem;color:var(--muted);">Spieler sehen das Video ab dem ersten Abspielen</span>
+        </div>`;
     }
   }
 
@@ -967,6 +1004,7 @@ function renderCurrentQuestion() {
 
   // Wire audio-boost gain onto freshly rendered audio elements
   wireAudioBoost(document.getElementById('host-audio'));
+  wireAudioBoost(document.getElementById('host-video'));
   wireAudioBoost(document.getElementById('reveal-audio'));
   applyAudioBoostDb(session?.audioBoostDb || 0);
 
@@ -1083,28 +1121,39 @@ async function toggleMediaReveal() {
   renderCurrentQuestion();
 }
 
+function hostMediaEl() {
+  return document.getElementById('host-audio') || document.getElementById('host-video');
+}
+// Local video: players only see the clip once it is played for the first time
+function videoRevealFlag(el) {
+  return el && el.tagName === 'VIDEO' ? { mediaRevealed: true } : {};
+}
+
 async function syncMedia(action) {
-  const audio = document.getElementById('host-audio');
+  const audio = hostMediaEl();
   await update('session', {
     mediaAction: action,
     mediaTime: audio ? audio.currentTime : 0,
-    mediaSyncTs: Date.now()
+    mediaSyncTs: Date.now(),
+    ...(action === 'play' ? videoRevealFlag(audio) : {})
   });
 }
 
 async function hostPlayAudio() {
-  const audio = document.getElementById('host-audio');
+  const audio = hostMediaEl();
   if (!audio) return;
+  const time = audio.currentTime;
   await update('session', {
     mediaAction: 'play',
-    mediaTime: audio.currentTime,
-    mediaSyncTs: Date.now()
+    mediaTime: time,
+    mediaSyncTs: Date.now(),
+    ...videoRevealFlag(audio)
   });
   audio.play();
 }
 
 async function hostPauseAudio() {
-  const audio = document.getElementById('host-audio');
+  const audio = hostMediaEl();
   if (!audio) return;
   audio.pause();
   await update('session', {
