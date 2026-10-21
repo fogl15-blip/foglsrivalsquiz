@@ -972,6 +972,7 @@ function renderCurrentQuestion() {
 
   const answerHtml = `
     <div class="q-answer-reveal">✅ Antwort: ${esc(q.answer || '–')}</div>
+    ${q.hostNote ? `<div style="font-size:0.82rem;color:var(--muted);background:var(--surface2);border:1px dashed var(--border2);border-radius:8px;padding:8px 12px;">📝 Nur für dich: ${esc(q.hostNote)}</div>` : ''}
     <div style="display:flex;align-items:center;gap:10px;margin-top:2px;">
       <span style="font-size:0.75rem;font-weight:600;${answersRevealed ? 'color:#22c55e;' : 'color:var(--muted);'}">
         ${answersRevealed ? '👁 Spielern gezeigt' : '🙈 Spielern noch nicht gezeigt'}
@@ -1010,8 +1011,14 @@ function renderCurrentQuestion() {
 
   // push question to session (for overlay) - only set phase if not already revealing
   if (!answersRevealed) {
-    update('session', { currentQuestion: { ...q, id: currentQId }, phase: 'question' });
+    update('session', { currentQuestion: { ...publicQ(q), id: currentQId }, phase: 'question' });
   }
+}
+
+// hostNote stays on the host: never copy it into the shared session
+function publicQ(q) {
+  const { hostNote, ...rest } = q;
+  return rest;
 }
 
 function toggleAnswerReveal() {
@@ -1026,7 +1033,7 @@ function toggleAnswerReveal() {
       answerRevealed: true,
       revealMediaRevealed: hasRevealMedia,
       currentQuestion: {
-        ...q,
+        ...publicQ(q),
         id: currentQId,
         revealType: q.revealType || '',
         revealUrl:  q.revealUrl  || '',

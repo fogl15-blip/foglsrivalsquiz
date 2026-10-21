@@ -566,6 +566,10 @@ function buildQForm(type, q) {
     <div class="form-row">
       <label>Antwort (Musterlösung)</label>
       <input class="input" id="qf-answer" placeholder="Richtige Antwort …" value="${esc(q?.answer||'')}">
+    </div>
+    <div class="form-row">
+      <label>Host-Notiz (optional, sehen nur du im Host – nie die Spieler)</label>
+      <input class="input" id="qf-hostnote" placeholder="z. B. Punkteaufteilung, Hintergrundinfo …" value="${esc(q?.hostNote||'')}">
     </div>`;
 
   let mediaFields = '';
@@ -754,6 +758,7 @@ async function saveQuestion() {
     type: currentType,
     question: q,
     answer: a || '',
+    hostNote: document.getElementById('qf-hostnote')?.value.trim() || '',
     categoryId: document.getElementById('qf-cat')?.value || null,
     points: currentPts,
     timeLimit: parseInt(document.getElementById('qf-time')?.value) || 0,
