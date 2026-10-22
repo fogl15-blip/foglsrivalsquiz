@@ -991,14 +991,13 @@ function renderCurrentQuestion() {
     const clips = parseClips(q.clips);
     mediaHtml = `<div class="q-audio-player">
       <span style="font-size:1.5rem;">🔊</span>
-      <audio id="host-audio" controls crossorigin="anonymous" src="${esc(q.audioUrl)}" style="flex:1;height:36px;" onplay="syncMedia('play')" onpause="syncMedia('pause')" onseeked="syncMedia('seek')"></audio>
+      <audio id="host-audio" controls preload="auto" crossorigin="anonymous" src="${esc(q.audioUrl)}" style="flex:1;height:36px;" onplay="syncMedia('play')" onpause="syncMedia('pause')" onseeked="syncMedia('seek')"></audio>
     </div>
-    ${clips.length ? `<div class="clip-row">
-      <span class="clip-label">🎵 Ausschnitt für alle:</span>
-      ${clips.map(s => `<button class="btn success sm" onclick="hostPlayClip(${s})">▶ ${s} s</button>`).join('')}
-    </div>` : ''}
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="btn ${clips.length ? 'ghost' : 'success'} sm" onclick="hostPlayAudio()">▶ Abspielen für alle</button>
+    <div class="clip-row">
+      ${clips.length
+        ? `<span class="clip-label">🎵 Für alle abspielen:</span>
+           ${clips.map(s => `<button class="btn success sm" onclick="hostPlayClip(${s})">▶ ${s} s</button>`).join('')}`
+        : `<button class="btn success sm" onclick="hostPlayAudio()">▶ Abspielen für alle</button>`}
       <button class="btn warn sm" onclick="hostPauseAudio()">⏸ Pause</button>
     </div>`;
   }

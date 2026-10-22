@@ -698,7 +698,7 @@ function renderQuestion() {
         <div style="font-size:0.85rem;color:var(--text);font-weight:500;">Audio wird vom Host abgespielt</div>
         <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">Lautstärke an deinem Gerät regeln</div>
       </div>
-      <audio id="player-audio" crossorigin="anonymous" src="${esc(q.audioUrl)}" style="display:none;"></audio>
+      <audio id="player-audio" preload="auto" crossorigin="anonymous" src="${esc(q.audioUrl)}" style="display:none;"></audio>
     </div>`;
   }
   if (q.type === 'video' && q.videoUrl) {
