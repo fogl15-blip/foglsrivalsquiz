@@ -5,6 +5,7 @@
 
 // Firebase SDK (compat mode via CDN – loaded in HTML)
 let db = null;
+let authReady = null;   // resolves once the anonymous login is done
 
 function initFirebase() {
   if (!firebase.apps.length) {
@@ -13,6 +14,14 @@ function initFirebase() {
   db = firebase.database();
   // Anonymous auth so the database rules can require auth != null,
   // keeping bots/scanners without a Firebase session out.
+  // On a device's very first visit there is no stored login yet: listeners
+  // registered before sign-in finishes get rejected by the rules and never
+  // retry, so on()/once() wait for authReady.
+  authReady = new Promise(resolve => {
+    const stop = firebase.auth().onAuthStateChanged(user => {
+      if (user) { stop(); resolve(user); }
+    });
+  });
   firebase.auth().signInAnonymously().catch(err => console.error('Anonymous sign-in failed:', err));
   return db;
 }
@@ -27,10 +36,10 @@ function update(path, val){ return db.ref(path).update(val); }
 function remove(path)     { return db.ref(path).remove(); }
 
 function on(path, cb) {
-  db.ref(path).on('value', snap => cb(snap.val()));
+  authReady.then(() => db.ref(path).on('value', snap => cb(snap.val())));
 }
 function once(path) {
-  return db.ref(path).once('value').then(s => s.val());
+  return authReady.then(() => db.ref(path).once('value')).then(s => s.val());
 }
 
 // ── State paths ──────────────────────────────────

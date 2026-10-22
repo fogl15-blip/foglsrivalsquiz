@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizBuzz – Host</title>
-<link rel="stylesheet" href="shared.css?v=20261022a">
-<script src="firebase-config.js?v=20261022a"></script>
+<link rel="stylesheet" href="shared.css?v=20261022b">
+<script src="firebase-config.js?v=20261022b"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="shared.js?v=20261022a"></script>
+<script src="shared.js?v=20261022b"></script>
 <script src="fx.js?v=2"></script>
 <style>
 /* ── Layout ── */
@@ -594,8 +594,8 @@ on(PATHS.categories,    d => { cats = d || {}; renderCatFilter(); renderQPanel()
 
 // Live answer updates – direct listener per player, updates only the answer div
 ALL_PIDS.forEach(pid => {
-  db.ref(`session/players/${pid}/answer`).on('value', snap => {
-    const val = snap.val() || '';
+  on(`session/players/${pid}/answer`, answer => {
+    const val = answer || '';
     const el = document.getElementById(`answer-live-${pid}`);
     if (el) el.textContent = val;
     // also keep session state in sync
