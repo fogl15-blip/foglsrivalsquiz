@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>QuizBuzz – Spieler</title>
-<link rel="stylesheet" href="shared.css?v=20261021b">
-<script src="firebase-config.js?v=20261021b"></script>
+<link rel="stylesheet" href="shared.css?v=20261022a">
+<script src="firebase-config.js?v=20261022a"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="shared.js?v=20261021b"></script>
+<script src="shared.js?v=20261022a"></script>
 <script src="fx.js?v=2"></script>
 <style>
 html { height: 100%; }
@@ -841,7 +841,12 @@ function renderQuestion() {
       if (action === 'play') {
         audio.currentTime = session?.mediaTime || 0;
         audio.play().catch(e => console.log('Audio play failed:', e));
+        setClipStop(audio, session?.mediaStopAt);
       } else if (action === 'pause') {
+        // Host reached the clip end: our own watcher stops at the same spot,
+        // pausing now would cut the clip short by our network delay
+        if (audio._clipTimer && (session?.mediaTime || 0) >= audio._clipStopAt - 0.1) return;
+        setClipStop(audio, null);
         audio.pause();
       } else if (action === 'seek') {
         audio.currentTime = session?.mediaTime || 0;

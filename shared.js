@@ -99,6 +99,27 @@ function fmtTime(ms) {
   return s + 's';
 }
 
+// ── Clips (z. B. Musik 5/10/15 s): q.clips = "5, 10, 15", q.clipStart = Sekunden ──
+function parseClips(v) {
+  return String(v ?? '').split(/[,;\s]+/).map(Number).filter(n => n > 0);
+}
+
+// Pauses el once it reaches stopAt (seconds); stopAt null/0 = play freely.
+// Call after play(), the watcher ends as soon as el is paused.
+function setClipStop(el, stopAt) {
+  if (!el) return;
+  clearInterval(el._clipTimer);
+  el._clipTimer = null;
+  el._clipStopAt = stopAt > 0 ? stopAt : null;
+  if (!el._clipStopAt) return;
+  el._clipTimer = setInterval(() => {
+    if (!el.paused && !el.ended && el.currentTime < stopAt) return;
+    clearInterval(el._clipTimer);
+    el._clipTimer = null;
+    if (!el.paused) el.pause();
+  }, 40);
+}
+
 // ── Rundenstatistik (session/stats/<pid>: buzzes, first, correct, wrong) ──
 function incStat(pid, key) {
   if (!pid) return;

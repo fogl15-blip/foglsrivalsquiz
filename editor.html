@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizBuzz – Fragen-Editor</title>
-<link rel="stylesheet" href="shared.css?v=20261021b">
-<script src="firebase-config.js?v=20261021b"></script>
+<link rel="stylesheet" href="shared.css?v=20261022a">
+<script src="firebase-config.js?v=20261022a"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="shared.js?v=20261021b"></script>
+<script src="shared.js?v=20261022a"></script>
 <style>
 /* ── Layout ── */
 header {
@@ -482,7 +482,8 @@ function renderQuestions() {
       if (q.imageUrl) mediaHtml = `<img src="${esc(q.imageUrl)}" class="q-media-thumb" alt="Vorschau">`;
     }
     if (q.type === 'audio') {
-      if (q.audioUrl) mediaHtml = `<div class="q-audio-badge">🎵 ${esc(q.audioUrl.split('/').pop().substring(0,40))}</div>`;
+      const clips = parseClips(q.clips);
+      if (q.audioUrl) mediaHtml = `<div class="q-audio-badge">🎵 ${esc(q.audioUrl.split('/').pop().substring(0,40))}${clips.length ? ' · ' + clips.join('/') + ' s' : ''}</div>`;
     }
     if (q.type === 'video') {
       if (q.videoUrl) mediaHtml = `<div class="q-audio-badge" style="color:#f55b8b;background:rgba(245,91,139,0.1)">🎬 ${esc(q.videoUrl.substring(0,50))}</div>`;
@@ -638,6 +639,16 @@ function buildQForm(type, q) {
           value="${esc(q?.audioUrl||'')}" oninput="livePreview('audio')">
         <div class="media-preview empty" id="media-preview" style="padding:12px;">
           ${q?.audioUrl ? '<audio controls src="' + esc(q.audioUrl) + '" style="width:100%"></audio>' : '<span>Audio-URL eingeben für Vorschau</span>'}
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Ausschnitte (Sekunden, optional)</label>
+          <input class="input" id="qf-clips" placeholder="z. B. 5, 10, 15" value="${esc(q?.clips||'')}">
+        </div>
+        <div class="form-row">
+          <label>Ausschnitte starten bei (Sek.)</label>
+          <input class="input" type="number" id="qf-clipStart" min="0" step="0.1" value="${esc(q?.clipStart||0)}">
         </div>
       </div>`;
   }
@@ -811,6 +822,8 @@ async function saveQuestion() {
   }
   if (currentType === 'audio') {
     data.audioUrl = document.getElementById('qf-audioUrl')?.value.trim() || '';
+    data.clips = parseClips(document.getElementById('qf-clips')?.value).join(', ');
+    data.clipStart = parseFloat(document.getElementById('qf-clipStart')?.value) || 0;
   }
   if (currentType === 'video') {
     data.videoUrl = document.getElementById('qf-videoUrl')?.value.trim() || '';

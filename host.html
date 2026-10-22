@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizBuzz – Host</title>
-<link rel="stylesheet" href="shared.css?v=20261021b">
-<script src="firebase-config.js?v=20261021b"></script>
+<link rel="stylesheet" href="shared.css?v=20261022a">
+<script src="firebase-config.js?v=20261022a"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="shared.js?v=20261021b"></script>
+<script src="shared.js?v=20261022a"></script>
 <script src="fx.js?v=2"></script>
 <style>
 /* ── Layout ── */
@@ -192,6 +192,8 @@ header nav a:hover { color: var(--text); }
   margin-top: 6px;
 }
 .q-audio-player audio { flex: 1; height: 36px; }
+.clip-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.clip-row .clip-label { font-size: 0.8rem; color: var(--muted); }
 
 .q-answer-reveal {
   background: rgba(34,197,94,0.1);
@@ -902,9 +904,10 @@ function loadQuestion(id) {
   currentQId = id;
   answersRevealed = false;
   clearInterval(timerInterval);
+  hostClipStopAt = null;
   // Auto-release buzzers + clear locked players when new question loads
   update('session', {
-    mediaRevealed: false, mediaAction: null, mediaTime: 0,
+    mediaRevealed: false, mediaAction: null, mediaTime: 0, mediaStopAt: null,
     revealMediaRevealed: false, revealMediaAction: null,
     answerRevealed: false,
     playerAnswersRevealed: false,
@@ -985,12 +988,17 @@ function renderCurrentQuestion() {
     mediaHtml += `<div class="q-hint">💬 ${esc(q.hint)}</div>`;
   }
   if (q.type === 'audio' && q.audioUrl) {
+    const clips = parseClips(q.clips);
     mediaHtml = `<div class="q-audio-player">
       <span style="font-size:1.5rem;">🔊</span>
       <audio id="host-audio" controls crossorigin="anonymous" src="${esc(q.audioUrl)}" style="flex:1;height:36px;" onplay="syncMedia('play')" onpause="syncMedia('pause')" onseeked="syncMedia('seek')"></audio>
     </div>
+    ${clips.length ? `<div class="clip-row">
+      <span class="clip-label">🎵 Ausschnitt für alle:</span>
+      ${clips.map(s => `<button class="btn success sm" onclick="hostPlayClip(${s})">▶ ${s} s</button>`).join('')}
+    </div>` : ''}
     <div style="display:flex;gap:8px;align-items:center;">
-      <button class="btn success sm" onclick="hostPlayAudio()">▶ Abspielen für alle</button>
+      <button class="btn ${clips.length ? 'ghost' : 'success'} sm" onclick="hostPlayAudio()">▶ Abspielen für alle</button>
       <button class="btn warn sm" onclick="hostPauseAudio()">⏸ Pause</button>
     </div>`;
   }
@@ -1232,11 +1240,16 @@ function videoRevealFlag(el) {
   return el && el.tagName === 'VIDEO' ? { mediaRevealed: true } : {};
 }
 
+// Stop position of the running clip (seconds) – players stop there too
+let hostClipStopAt = null;
+
 async function syncMedia(action) {
   const audio = hostMediaEl();
+  if (action === 'pause') hostClipStopAt = null;
   await update('session', {
     mediaAction: action,
     mediaTime: audio ? audio.currentTime : 0,
+    mediaStopAt: hostClipStopAt,
     mediaSyncTs: Date.now(),
     ...(action === 'play' ? videoRevealFlag(audio) : {})
   });
@@ -1246,13 +1259,35 @@ async function hostPlayAudio() {
   const audio = hostMediaEl();
   if (!audio) return;
   const time = audio.currentTime;
+  hostClipStopAt = null;
+  setClipStop(audio, null);
   await update('session', {
     mediaAction: 'play',
     mediaTime: time,
+    mediaStopAt: null,
     mediaSyncTs: Date.now(),
     ...videoRevealFlag(audio)
   });
   audio.play();
+}
+
+// Plays the first `sec` seconds from q.clipStart for everyone (no pause() first:
+// its async pause event would overwrite the play sync)
+async function hostPlayClip(sec) {
+  const audio = hostMediaEl();
+  const q = questions[currentQId];
+  if (!audio || !q) return;
+  const start = parseFloat(q.clipStart) || 0;
+  hostClipStopAt = start + sec;
+  audio.currentTime = start;
+  await update('session', {
+    mediaAction: 'play',
+    mediaTime: start,
+    mediaStopAt: hostClipStopAt,
+    mediaSyncTs: Date.now()
+  });
+  audio.play();
+  setClipStop(audio, hostClipStopAt);
 }
 
 async function hostPauseAudio() {
